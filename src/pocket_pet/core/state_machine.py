@@ -11,6 +11,9 @@ import enum
 import random
 
 from ..config import (
+    CLIMB_CHANCE,
+    CLIMB_MAX_SECONDS,
+    CLIMB_SPEED,
     IDLE_DURATION,
     JUMP_CHANCE,
     JUMP_VELOCITY,
@@ -30,6 +33,7 @@ class State(enum.Enum):
     SLEEP = "sleep"  # too tired; recovering energy
     EAT = "eat"    # eating a food that dropped in (transient)
     PET = "pet"    # being petted (transient)
+    CLIMB = "climb"  # scaling a window's side edge
 
 
 # States that play out for a fixed time and freeze ordinary movement.
@@ -43,6 +47,7 @@ class Brain:
         self.facing = 1  # +1 right, -1 left
         self._timer = self._roll(IDLE_DURATION)
         self._react_t = 0.0  # remaining time in a transient reaction state
+        self._climb_t = 0.0  # remaining climb time before giving up
 
     def _roll(self, span: tuple[float, float]) -> float:
         return self.rng.uniform(*span)
@@ -71,6 +76,24 @@ class Brain:
         self, body: Body, result: StepResult, dt: float, needs=None, can_walk: bool = True
     ) -> None:
         """Update behavior after a physics step and set next-frame intent."""
+        # Climbing a window wall (physics keeps body.climbing in sync).
+        if body.climbing:
+            if result.started_climb:
+                # Sometimes just turn around instead of committing to a climb.
+                if self.rng.random() >= CLIMB_CHANCE:
+                    body.climbing = False
+                    self.facing = -body.climb_facing
+                    return
+                self._climb_t = CLIMB_MAX_SECONDS
+            self.state = State.CLIMB
+            self.facing = body.climb_facing
+            body.vx = 0.0
+            body.vy = -CLIMB_SPEED
+            self._climb_t -= dt
+            if self._climb_t <= 0:
+                body.climbing = False  # give up -> gravity resumes next step
+            return
+
         # Bounced off a wall while walking -> turn around.
         if result.hit_left:
             self.facing = 1

@@ -11,6 +11,11 @@ WALK_SPEED = 150.0     # px / s
 JUMP_CHANCE = 0.12     # ~once every 8 s of idling
 JUMP_VELOCITY = -560.0 # upward kick of a self-initiated hop
 
+# Climbing window side edges.
+CLIMB_SPEED = 95.0       # px / s the pet climbs upward
+CLIMB_MAX_SECONDS = 14.0 # safety cap so a stuck climb always ends
+CLIMB_CHANCE = 0.7       # on bumping a wall, odds it climbs (vs turning around)
+
 # Behavior timing (seconds), [min, max] picked at random.
 IDLE_DURATION = (0.8, 3.0)
 WALK_DURATION = (1.5, 4.5)

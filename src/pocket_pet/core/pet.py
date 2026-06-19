@@ -55,6 +55,7 @@ class Pet:
             self.needs.decay(dt, sleeping=sleeping)
 
         if self.body.held:
+            self.body.climbing = False  # grabbing interrupts a climb
             self.brain.state = State.DRAG
             return StepResult()
 

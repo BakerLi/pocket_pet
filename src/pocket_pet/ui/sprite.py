@@ -71,6 +71,9 @@ class PetSprite:
             bob = abs(math.sin(t * 12.0)) * h * 0.03  # quick chewing nods
         elif state is State.PET:
             bob = math.sin(t * 5.0) * h * 0.02        # happy little wiggle
+        elif state is State.CLIMB:
+            leg_swing = math.sin(t * 10.0) * w * 0.09  # clambering limbs
+            bob = math.sin(t * 10.0) * h * 0.015
 
         cx = w / 2.0
         body_w = w * (0.80 + squash * -1.0) * 0.9 * scale

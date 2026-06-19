@@ -33,6 +33,11 @@ See [`DESIGN.md`](DESIGN.md) for the full architecture and roadmap.
   machine+user id so your pet is always the same one (à la Buddy). It hatches
   from an egg → baby → adult as it ages (age persists). Right-click → ℹ️ 狀態
   opens a panel with species, rarity, stage/age, and live need bars.
+- **Phase 5a — richer interactions (done).** Feed submenu with several food
+  types that drop in from above and are eaten; a stroking hand + floating hearts
+  when petted; the pet hops on its own and **climbs the side of windows** it
+  walks into, then settles on the top edge (and falls if that window moves or
+  closes mid-climb).
 
 ### Run the pet
 
