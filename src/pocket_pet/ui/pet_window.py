@@ -151,6 +151,7 @@ class PetWindow(QWidget):
             p, self.width(), self.height(),
             self.pet.state, self.pet.facing, self._anim, self.pet.body.vy, sad,
             self.pet.stage, self._body_color, self._edge_color,
+            self.pet.identity.species.key,
         )
 
         # A stroking hand while the pet is being petted.

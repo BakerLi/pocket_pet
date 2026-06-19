@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygon
 
 from ..core.state_machine import State
 from ..sim.growth import Stage
@@ -22,6 +22,9 @@ _CHEEK = QColor(255, 150, 170, 160)
 _EGG = QColor(250, 246, 236)
 _DEFAULT_BODY = QColor(120, 200, 255)
 _DEFAULT_EDGE = QColor(70, 140, 200)
+_INNER = QColor(255, 175, 195)   # inner-ear / soft pink
+_BEAK = QColor(255, 180, 60)     # bills & beaks
+_WHITE = QColor(250, 250, 252)
 
 
 class PetSprite:
@@ -38,6 +41,7 @@ class PetSprite:
         stage: Stage = Stage.ADULT,
         body_color: QColor | None = None,
         edge_color: QColor | None = None,
+        species_key: str = "",
     ) -> None:
         p.setRenderHint(QPainter.Antialiasing)
         body_c = body_color or _DEFAULT_BODY
@@ -87,6 +91,10 @@ class PetSprite:
         fy = h - foot_h - 2
         p.drawEllipse(int(cx - body_w * 0.30 - leg_swing), int(fy), int(foot_w), int(foot_h))
         p.drawEllipse(int(cx + body_w * 0.30 - foot_w + leg_swing), int(fy), int(foot_w), int(foot_h))
+
+        # --- species features behind the body (ears, horns, shell...) -------
+        self._features(p, species_key, "back", cx, top, body_w, body_h,
+                       facing, body_c, edge_c, w, h)
 
         # --- body ----------------------------------------------------------
         p.setPen(Qt.NoPen)
@@ -145,6 +153,10 @@ class PetSprite:
                 p.drawEllipse(int(cx + sx * eye_dx * 1.7 + gaze - ch), int(eye_y + eye_r),
                               int(ch * 2), int(ch * 1.6))
 
+        # --- species features in front of the body (beak, belly, cap...) ----
+        self._features(p, species_key, "front", cx, top, body_w, body_h,
+                       facing, body_c, edge_c, w, h)
+
         # Zzz while sleeping
         if state is State.SLEEP:
             p.setPen(QPen(_DARK, max(1.0, w * 0.015)))
@@ -153,6 +165,131 @@ class PetSprite:
             zx = cx + body_w * 0.45
             zy = top - h * 0.05 - zf * h * 0.18
             p.drawText(int(zx), int(zy), "z")
+
+    # --- per-species procedural features --------------------------------
+    def _features(self, p, key, layer, cx, top, bw, bh, facing,
+                  body_c, edge_c, w, h):
+        """Draw species-specific bits so each species reads distinctly.
+
+        ``layer`` is "back" (behind the body: ears, horns, shells) or "front"
+        (over the face: beaks, bellies, caps). Geometry is relative to the body
+        ellipse (centre ``cx``, top ``top``, size ``bw`` x ``bh``).
+        """
+        pen = QPen(edge_c, max(1.0, w * 0.013))
+
+        def ell(x, y, ew, eh, brush, outline=True):
+            p.setPen(pen if outline else Qt.NoPen)
+            p.setBrush(brush)
+            p.drawEllipse(int(x), int(y), int(ew), int(eh))
+
+        def tri(pts, brush, outline=True):
+            p.setPen(pen if outline else Qt.NoPen)
+            p.setBrush(brush)
+            p.drawPolygon(QPolygon([QPoint(int(a), int(b)) for a, b in pts]))
+
+        mid_y = top + bh * 0.5
+        bcx = cx  # body centre x
+
+        if layer == "back":
+            if key == "rabbit":
+                ew, eh = bw * 0.16, bh * 0.78
+                for sx in (-1, 1):
+                    ex = bcx + sx * bw * 0.20 - ew / 2
+                    ell(ex, top - eh * 0.78, ew, eh, body_c)
+                    ell(ex + ew * 0.28, top - eh * 0.66, ew * 0.44, eh * 0.62, _INNER, False)
+            elif key in ("cat", "capybara"):
+                size = bw * 0.30 if key == "cat" else bw * 0.20
+                for sx in (-1, 1):
+                    bx = bcx + sx * bw * 0.30
+                    tri([(bx - size / 2, top + bh * 0.12),
+                         (bx + size / 2, top + bh * 0.12),
+                         (bx + sx * size * 0.15, top - bh * 0.22)], body_c)
+            elif key == "owl":
+                for sx in (-1, 1):
+                    bx = bcx + sx * bw * 0.34
+                    tri([(bx - bw * 0.10, top + bh * 0.08),
+                         (bx + bw * 0.10, top + bh * 0.08),
+                         (bx, top - bh * 0.16)], body_c)
+            elif key == "dragon":
+                for sx in (-1, 1):  # horns
+                    bx = bcx + sx * bw * 0.26
+                    tri([(bx - bw * 0.07, top + bh * 0.05),
+                         (bx + bw * 0.07, top + bh * 0.05),
+                         (bx + sx * bw * 0.12, top - bh * 0.28)], edge_c)
+                for sx in (-1, 1):  # wings
+                    bx = bcx + sx * bw * 0.5
+                    tri([(bx, mid_y - bh * 0.2),
+                         (bx + sx * bw * 0.42, mid_y - bh * 0.05),
+                         (bx + sx * bw * 0.30, mid_y + bh * 0.32)], edge_c)
+            elif key == "turtle":  # shell hump on top
+                ell(bcx - bw * 0.42, top - bh * 0.18, bw * 0.84, bh * 0.55, edge_c)
+            elif key == "snail":  # spiral shell on the back
+                sx0 = bcx + bw * 0.18
+                ell(sx0 - bw * 0.30, mid_y - bh * 0.30, bw * 0.6, bh * 0.6, edge_c)
+                ell(sx0 - bw * 0.16, mid_y - bh * 0.16, bw * 0.32, bh * 0.32, body_c, False)
+            elif key == "robot":  # antenna
+                p.setPen(QPen(edge_c, max(1.5, w * 0.02)))
+                p.drawLine(int(bcx), int(top), int(bcx), int(top - bh * 0.3))
+                ell(bcx - bw * 0.06, top - bh * 0.42, bw * 0.12, bh * 0.12, _INNER)
+            elif key == "mushroom":  # cap dome behind/over the top
+                ell(bcx - bw * 0.58, top - bh * 0.30, bw * 1.16, bh * 0.8, edge_c)
+            elif key in ("duck", "goose", "penguin"):  # tuft
+                tri([(bcx - bw * 0.08, top + bh * 0.02),
+                     (bcx + bw * 0.08, top + bh * 0.02),
+                     (bcx + bw * 0.02, top - bh * 0.22)], edge_c)
+            return
+
+        # ---- front layer ----
+        if key == "mushroom":  # white spots on the cap
+            for dx, dy in ((-0.26, -0.05), (0.20, -0.10), (0.0, -0.22)):
+                ell(bcx + dx * bw, top - bh * 0.12 + dy * bh, bw * 0.16, bh * 0.13, _WHITE, False)
+        elif key == "penguin":  # white belly + flippers + beak
+            ell(bcx - bw * 0.26, top + bh * 0.30, bw * 0.52, bh * 0.62, _WHITE, False)
+            for sx in (-1, 1):
+                ell(bcx + sx * bw * 0.46 - bw * 0.08, mid_y - bh * 0.1, bw * 0.16, bh * 0.42, edge_c)
+            tri([(bcx, mid_y - bh * 0.05), (bcx + bw * 0.18 * facing, mid_y),
+                 (bcx, mid_y + bh * 0.08)], _BEAK)
+        elif key == "duck":  # wide flat bill
+            ell(bcx + facing * bw * 0.06, mid_y - bh * 0.02, bw * 0.34, bh * 0.18, _BEAK)
+        elif key == "goose":  # slim beak
+            tri([(bcx, mid_y - bh * 0.08), (bcx + facing * bw * 0.32, mid_y),
+                 (bcx, mid_y + bh * 0.04)], _BEAK)
+        elif key == "owl":  # small triangular beak
+            tri([(bcx - bw * 0.06, mid_y), (bcx + bw * 0.06, mid_y),
+                 (bcx, mid_y + bh * 0.16)], _BEAK)
+        elif key == "cactus":  # spikes + flower
+            p.setPen(QPen(edge_c, max(1.0, w * 0.012)))
+            for ang in range(0, 360, 45):
+                a = math.radians(ang)
+                ox, oy = math.cos(a) * bw * 0.5, math.sin(a) * bh * 0.5
+                p.drawLine(int(bcx + ox), int(mid_y + oy),
+                           int(bcx + ox * 1.18), int(mid_y + oy * 1.18))
+            ell(bcx - bw * 0.10, top - bh * 0.04, bw * 0.2, bh * 0.16, _INNER, False)
+        elif key == "blob":  # glossy highlight
+            ell(bcx - bw * 0.28, top + bh * 0.12, bw * 0.18, bh * 0.16, _WHITE, False)
+        elif key == "ghost":  # scalloped wavy hem
+            n = 4
+            for i in range(n):
+                bx = bcx - bw * 0.5 + bw * (i + 0.5) / n
+                ell(bx - bw / n * 0.5, top + bh * 0.82, bw / n, bh * 0.3, body_c, False)
+        elif key == "octopus":  # little tentacle bumps along the bottom
+            n = 4
+            for i in range(n):
+                bx = bcx - bw * 0.42 + bw * 0.84 * i / (n - 1)
+                ell(bx - bw * 0.10, top + bh * 0.82, bw * 0.2, bh * 0.28, body_c)
+        elif key == "chonk":  # extra chubby cheeks
+            for sx in (-1, 1):
+                ell(bcx + sx * bw * 0.42 - bw * 0.12, mid_y + bh * 0.02, bw * 0.24, bh * 0.3, body_c)
+        elif key == "robot":  # chest panel
+            p.setPen(pen)
+            p.setBrush(_INNER)
+            p.drawRect(int(bcx - bw * 0.16), int(mid_y + bh * 0.05), int(bw * 0.32), int(bh * 0.22))
+        elif key == "axolotl":  # external gills (frills) on the sides of the head
+            for sx in (-1, 1):
+                for k in range(3):
+                    bx = bcx + sx * bw * 0.42
+                    by = top + bh * 0.18 + k * bh * 0.14
+                    ell(bx - bw * 0.05, by, bw * 0.18, bh * 0.1, _INNER)
 
     def draw_petting_hand(self, p: QPainter, w: int, h: int, t: float) -> None:
         """A little hand stroking the pet's head, sliding side to side."""
