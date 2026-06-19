@@ -6,6 +6,9 @@ build/
 dist/
 *.spec
 .pytest_cache/
+# raw art source packs (Shimeji etc.) — only converted sheets under
+# assets/sprites/<species>/ are committed + bundled. See tools/shimeji_to_sheets.py
+art_src/
 # local Claude Code settings (personal, machine-specific)
 .claude/settings.local.json
 # pocket_pet save data is in %APPDATA%, not repo
