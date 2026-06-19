@@ -40,6 +40,7 @@ from ..sim.growth import Stage
 from .food import FoodWindow
 from .speech_bubble import SpeechBubble
 from .sprite import ProceduralProvider
+from .sprite_asset import AssetProvider
 from .sprite_provider import SpriteContext
 from .stats_panel import StatsPanel
 
@@ -60,7 +61,8 @@ class PetWindow(QWidget):
 
         self.pet = pet
         self.world = world
-        self.sprite = ProceduralProvider()
+        # Use bundled art where present, else draw procedurally.
+        self.sprite = AssetProvider(ProceduralProvider())
         self._anim = 0.0
 
         # Interaction effects.

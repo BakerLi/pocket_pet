@@ -24,5 +24,6 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-"pocket_pet" = ["../assets/**/*"]
+# Note: sprite art lives in the repo-root assets/ dir (outside the package).
+# It is bundled into the exe by build.ps1 via PyInstaller --add-data, not as
+# package-data here.

@@ -26,12 +26,19 @@ if ($running) {
 }
 
 Write-Host "==> Building single-file exe..."
-# No --add-data: sprite + tray icon are drawn procedurally, no asset files.
-& $py -m PyInstaller --noconfirm --clean `
-    --onefile --windowed `
-    --name PocketPet `
-    --paths src `
-    packaging\launcher.py | Out-Host
+# Bundle assets\ if present (sprite art); core sprites are still procedural so
+# this is optional. PyInstaller's add-data uses "src;dest" on Windows.
+$pyArgs = @(
+    "-m", "PyInstaller", "--noconfirm", "--clean",
+    "--onefile", "--windowed",
+    "--name", "PocketPet",
+    "--paths", "src"
+)
+if (Test-Path "assets") {
+    $pyArgs += @("--add-data", "assets;assets")
+}
+$pyArgs += "packaging\launcher.py"
+& $py @pyArgs | Out-Host
 if ($LASTEXITCODE -ne 0) {
     throw "PyInstaller failed (exit $LASTEXITCODE)."
 }
