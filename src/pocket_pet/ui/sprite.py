@@ -1,10 +1,10 @@
-"""Procedural placeholder sprite.
+"""Procedural sprite provider.
 
 No art assets yet, so we draw the pet with QPainter primitives and animate it
 analytically from an accumulating time value (no sprite sheet / frame indices).
 Colours come from the pet's species; size/appearance vary by growth stage.
-This is deliberately swappable: a real sprite-sheet animator can replace
-:meth:`PetSprite.draw` behind the same call signature later.
+This is the default :class:`SpriteProvider`; an asset-backed one can drop in
+behind the same interface later (see :mod:`sprite_provider`).
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from PySide6.QtGui import QColor, QPainter, QPen, QPolygon
 
 from ..core.state_machine import State
 from ..sim.growth import Stage
+from .sprite_provider import SpriteContext, SpriteProvider
 
 _DARK = QColor(35, 35, 48)
 _CHEEK = QColor(255, 150, 170, 160)
@@ -27,22 +28,18 @@ _BEAK = QColor(255, 180, 60)     # bills & beaks
 _WHITE = QColor(250, 250, 252)
 
 
-class PetSprite:
-    def draw(
-        self,
-        p: QPainter,
-        w: int,
-        h: int,
-        state: State,
-        facing: int,
-        t: float,
-        vy: float = 0.0,
-        sad: bool = False,
-        stage: Stage = Stage.ADULT,
-        body_color: QColor | None = None,
-        edge_color: QColor | None = None,
-        species_key: str = "",
-    ) -> None:
+class ProceduralProvider(SpriteProvider):
+    """Draws the pet entirely with QPainter primitives (no art assets)."""
+
+    def draw(self, p: QPainter, ctx: SpriteContext) -> None:
+        # Unpack the context into the local names the drawing code below uses.
+        w, h = ctx.w, ctx.h
+        state, facing, t = ctx.state, ctx.facing, ctx.t
+        vy, sad, stage = ctx.vy, ctx.sad, ctx.stage
+        body_color, edge_color, species_key = (
+            ctx.body_color, ctx.edge_color, ctx.species_key,
+        )
+
         p.setRenderHint(QPainter.Antialiasing)
         body_c = body_color or _DEFAULT_BODY
         edge_c = edge_color or _DEFAULT_EDGE

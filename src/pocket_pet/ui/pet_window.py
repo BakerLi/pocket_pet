@@ -39,7 +39,8 @@ from ..sim import dialogue
 from ..sim.growth import Stage
 from .food import FoodWindow
 from .speech_bubble import SpeechBubble
-from .sprite import PetSprite
+from .sprite import ProceduralProvider
+from .sprite_provider import SpriteContext
 from .stats_panel import StatsPanel
 
 _DRAG_THRESHOLD = 4      # physical px of movement before a press counts as a drag
@@ -59,7 +60,7 @@ class PetWindow(QWidget):
 
         self.pet = pet
         self.world = world
-        self.sprite = PetSprite()
+        self.sprite = ProceduralProvider()
         self._anim = 0.0
 
         # Interaction effects.
@@ -147,12 +148,14 @@ class PetWindow(QWidget):
         p = QPainter(self)
         n = self.pet.needs
         sad = n.mood < LOW_NEED or n.fullness < LOW_NEED
-        self.sprite.draw(
-            p, self.width(), self.height(),
-            self.pet.state, self.pet.facing, self._anim, self.pet.body.vy, sad,
-            self.pet.stage, self._body_color, self._edge_color,
-            self.pet.identity.species.key,
+        ctx = SpriteContext(
+            w=self.width(), h=self.height(),
+            state=self.pet.state, facing=self.pet.facing, t=self._anim,
+            vy=self.pet.body.vy, sad=sad, stage=self.pet.stage,
+            body_color=self._body_color, edge_color=self._edge_color,
+            species_key=self.pet.identity.species.key,
         )
+        self.sprite.draw(p, ctx)
 
         # A stroking hand while the pet is being petted.
         if self.pet.state is State.PET:
