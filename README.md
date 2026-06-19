@@ -38,6 +38,12 @@ See [`DESIGN.md`](DESIGN.md) for the full architecture and roadmap.
   when petted; the pet hops on its own and **climbs the side of windows** it
   walks into, then settles on the top edge (and falls if that window moves or
   closes mid-climb).
+- **Phase 5b — art pipeline + rabbit trial (in progress).** Rendering goes
+  through a `SpriteProvider` seam: `AssetProvider` loads per-species sprite-sheet
+  art from `assets/sprites/<species>/` and falls back to the procedural drawing
+  wherever art is missing — so art can land one species/state at a time. The
+  rabbit is the first fully-arted species (8 states, multi-frame); see
+  `tools/gen_rabbit_art.py` and `assets/sprites/README.md`.
 
 ### Run the pet
 
