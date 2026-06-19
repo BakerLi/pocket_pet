@@ -24,9 +24,10 @@ def _fmt_age(seconds: float) -> str:
 
 
 class StatsPanel(QWidget):
-    def __init__(self, pet):
+    def __init__(self, pet, window=None):
         super().__init__(None, Qt.WindowStaysOnTopHint)
         self.pet = pet
+        self.window_ref = window  # PetWindow, for the real feed/pet interactions
         self.setWindowTitle("🐾 寵物狀態")
         self.setMinimumWidth(260)
 
@@ -57,8 +58,8 @@ class StatsPanel(QWidget):
         btns = QHBoxLayout()
         feed = QPushButton("🍖 餵食")
         stroke = QPushButton("🤚 摸摸")
-        feed.clicked.connect(lambda: pet.needs.feed())
-        stroke.clicked.connect(lambda: pet.needs.stroke())
+        feed.clicked.connect(self._feed)
+        stroke.clicked.connect(self._stroke)
         btns.addWidget(feed)
         btns.addWidget(stroke)
         layout.addLayout(btns)
@@ -66,6 +67,22 @@ class StatsPanel(QWidget):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._refresh)
         self._timer.start(200)
+        self._refresh()
+
+    def _feed(self) -> None:
+        # Use the full interaction (food drops in, pet eats) when we have the
+        # pet window; fall back to a direct top-up if opened standalone.
+        if self.window_ref is not None:
+            self.window_ref.feed_random()
+        else:
+            self.pet.needs.feed()
+        self._refresh()
+
+    def _stroke(self) -> None:
+        if self.window_ref is not None:
+            self.window_ref._stroke()
+        else:
+            self.pet.needs.stroke()
         self._refresh()
 
     def _refresh(self) -> None:

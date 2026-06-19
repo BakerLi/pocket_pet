@@ -31,9 +31,17 @@ def build_tray(world) -> QSystemTrayIcon:
     tray.setToolTip("Pocket Pet")
 
     menu = QMenu()
+    menu.addAction("🏠  把寵物找回來", lambda: world.recall_pet())  # 🏠 找回跑掉的寵物
+    menu.addSeparator()
     menu.addAction("❌  結束", lambda: world.quit())              # ❌ 結束
     tray.setContextMenu(menu)
     tray._menu = menu  # prevent GC of the menu
 
+    # Double-click the tray icon to recall the pet too.
+    tray.activated.connect(
+        lambda reason: world.recall_pet()
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick
+        else None
+    )
     tray.show()
     return tray

@@ -79,6 +79,18 @@ class World:
         self.pet_window = window
         return window
 
+    def recall_pet(self) -> None:
+        """Bring a lost pet back: re-drop it at center-top with a clean state."""
+        if self.pet_window is None:
+            return
+        b = self.pet_window.pet.body
+        b.x = self.bounds.right * 0.45
+        b.y = 60.0
+        b.vx = b.vy = 0.0
+        b.held = False
+        b.climbing = False
+        b.on_ground = False
+
     def save_state(self) -> None:
         """Persist the pet's needs + age."""
         if self.pet_window is not None:

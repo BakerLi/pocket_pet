@@ -228,6 +228,10 @@ class PetWindow(QWidget):
         self.pet.body.vy = _HOP_VELOCITY
         self.pet.body.on_ground = False
 
+    def feed_random(self) -> None:
+        """Drop a random food (used by the stats panel's feed button)."""
+        self._drop_food(self.pet.brain.rng.choice(FOODS))
+
     def _drop_food(self, food) -> None:
         """Drop the chosen food from above; it lands on the pet and is eaten."""
         if self.pet.stage is Stage.EGG:
@@ -264,7 +268,7 @@ class PetWindow(QWidget):
 
     def _open_stats(self) -> None:
         if self._panel is None:
-            self._panel = StatsPanel(self.pet)
+            self._panel = StatsPanel(self.pet, self)
         self._panel.show()
         self._panel.raise_()
         self._panel.activateWindow()

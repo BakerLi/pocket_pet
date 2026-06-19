@@ -210,4 +210,15 @@ def step(body: Body, bounds: Bounds, dt: float, platforms=()) -> StepResult:
         body.on_ground = False
         body.on_platform = False
 
+    # Safety net: never let the pet sink below the desktop floor (e.g. dropped
+    # below the taskbar line), where the landing check above can't catch it.
+    if body.y + body.height > bounds.floor:
+        body.y = bounds.floor - body.height
+        if body.vy > 0:
+            body.vy = 0.0
+        if not body.on_ground:
+            result.landed = True
+        body.on_ground = True
+        body.on_platform = False
+
     return result
