@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+*.spec
+.pytest_cache/
+# local Claude Code settings (personal, machine-specific)
+.claude/settings.local.json
+# pocket_pet save data is in %APPDATA%, not repo
