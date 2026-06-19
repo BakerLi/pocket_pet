@@ -18,14 +18,26 @@ import time
 
 import win32api
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QGuiApplication, QPainter
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter
 from PySide6.QtWidgets import QMenu, QWidget
 
-from ..config import BUBBLE_SECONDS, CHATTER_INTERVAL, DT, LOW_NEED
+from ..config import (
+    BUBBLE_SECONDS,
+    CHATTER_INTERVAL,
+    DT,
+    EAT_DURATION,
+    FOODS,
+    HEART_COUNT,
+    HEART_RISE,
+    LOW_NEED,
+    PET_REACT_SECONDS,
+)
 from ..core.pet import Pet
+from ..core.state_machine import State
 from ..platform import winapi
 from ..sim import dialogue
 from ..sim.growth import Stage
+from .food import FoodWindow
 from .speech_bubble import SpeechBubble
 from .sprite import PetSprite
 from .stats_panel import StatsPanel
@@ -43,11 +55,17 @@ class PetWindow(QWidget):
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle("Pocket Pet")
+        self.setCursor(Qt.PointingHandCursor)  # hovering the pet => a hand to pet it
 
         self.pet = pet
         self.world = world
         self.sprite = PetSprite()
         self._anim = 0.0
+
+        # Interaction effects.
+        self._food: FoodWindow | None = None      # at most one food in the air
+        self._hearts: list[list[float]] = []      # [x, y, t, life] in window px
+        self._heart_font = QFont("Segoe UI", 11)
 
         self.bubble = SpeechBubble()
         self._chatter_t = self.pet.brain.rng.uniform(*CHATTER_INTERVAL)
@@ -95,6 +113,13 @@ class PetWindow(QWidget):
                 self._say("我長大了!")
             self._last_stage = self.pet.stage
 
+        # Drift floating hearts upward and fade them out.
+        if self._hearts:
+            for hb in self._hearts:
+                hb[1] -= HEART_RISE * DT
+                hb[2] += DT
+            self._hearts = [hb for hb in self._hearts if hb[2] < hb[3]]
+
         # Keep the bubble hovering above the pet.
         b = self.pet.body
         self.bubble.place_above(b.x + b.width / 2.0, b.y)
@@ -127,6 +152,18 @@ class PetWindow(QWidget):
             self.pet.state, self.pet.facing, self._anim, self.pet.body.vy, sad,
             self.pet.stage, self._body_color, self._edge_color,
         )
+
+        # A stroking hand while the pet is being petted.
+        if self.pet.state is State.PET:
+            self.sprite.draw_petting_hand(p, self.width(), self.height(), self._anim)
+
+        # Floating hearts.
+        if self._hearts:
+            p.setFont(self._heart_font)
+            for hx, hy, ht, hlife in self._hearts:
+                alpha = int(255 * max(0.0, 1.0 - ht / hlife))
+                p.setPen(QColor(235, 90, 120, alpha))
+                p.drawText(int(hx), int(hy), "♥")
 
     # --- interaction -----------------------------------------------------
     def mousePressEvent(self, e) -> None:
@@ -191,13 +228,39 @@ class PetWindow(QWidget):
         self.pet.body.vy = _HOP_VELOCITY
         self.pet.body.on_ground = False
 
-    def _feed(self) -> None:
-        self.pet.needs.feed()
+    def _drop_food(self, food) -> None:
+        """Drop the chosen food from above; it lands on the pet and is eaten."""
+        if self.pet.stage is Stage.EGG:
+            self._say("還是顆蛋呢…")  # eggs don't eat
+            return
+        if self._food is not None:  # one piece in the air at a time
+            return
+        _key, emoji, _name, fullness, mood_bonus = food
+        self._food = FoodWindow(
+            self.pet, emoji,
+            on_eaten=lambda: self._consume(fullness, mood_bonus),
+        )
+
+    def _consume(self, fullness: float, mood_bonus: float) -> None:
+        self._food = None
+        self.pet.needs.feed(fullness, mood_bonus)
+        self.pet.brain.start_reaction(State.EAT, EAT_DURATION)
         self._say(dialogue.pick(self.pet.needs, "feed", self.pet.brain.rng))
 
     def _stroke(self) -> None:
         self.pet.needs.stroke()
+        self.pet.brain.start_reaction(State.PET, PET_REACT_SECONDS)
+        self._spawn_hearts()
         self._say(dialogue.pick(self.pet.needs, "pet", self.pet.brain.rng))
+
+    def _spawn_hearts(self) -> None:
+        rng = self.pet.brain.rng
+        w, h = self.width(), self.height()
+        for _ in range(HEART_COUNT):
+            x = w * 0.5 + rng.uniform(-w * 0.25, w * 0.25)
+            y = h * 0.45 + rng.uniform(-h * 0.05, h * 0.10)
+            life = PET_REACT_SECONDS * rng.uniform(0.7, 1.1)
+            self._hearts.append([x, y, 0.0, life])
 
     def _open_stats(self) -> None:
         if self._panel is None:
@@ -208,18 +271,21 @@ class PetWindow(QWidget):
 
     def _show_menu(self, global_pos) -> None:
         menu = QMenu(self)
-        menu.addAction("🍖  餵食", self._feed)             # 餵食
+        feed_menu = menu.addMenu("🍽️  餵食")              # 餵食(多種食物)
+        for food in FOODS:
+            _key, emoji, name, _f, _m = food
+            feed_menu.addAction(f"{emoji}  {name}", lambda f=food: self._drop_food(f))
         menu.addAction("🤚  摸摸", self._stroke)           # 摸摸
         menu.addAction("ℹ️  狀態", self._open_stats)       # 狀態面板
-        menu.addSeparator()
-        menu.addAction("➕  再生一隻", lambda: self.world.spawn())     # 再生一隻
-        menu.addAction("🐾  放生這隻", lambda: self.world.remove(self))  # 放生這隻
         menu.addSeparator()
         menu.addAction("❌  結束", lambda: self.world.quit())  # 結束
         menu.exec(global_pos)
 
     def shutdown(self) -> None:
         self.timer.stop()
+        if self._food is not None:
+            self._food.shutdown()
+            self._food = None
         if self._panel is not None:
             self._panel.close()
         self.bubble.close()

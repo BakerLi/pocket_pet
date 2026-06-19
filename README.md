@@ -15,8 +15,8 @@ See [`DESIGN.md`](DESIGN.md) for the full architecture and roadmap.
   screen edges, idles/blinks, and is drawn with an animated procedural sprite.
 - **Phase 2 — interaction (done).** Left-drag to grab and throw it (release
   velocity feeds back into gravity), left-click for a hop, right-click for a
-  context menu (greet / add pet / release / quit), and a system-tray icon
-  (double-click to add a pet; menu to add/quit).
+  context menu (feed / pet / stats / quit), and a system-tray icon (menu to
+  quit). One pet at a time.
 - **Phase 3 — window perching (done).** The pet stands and walks on the top
   edge of other windows. Window edges are one-way platforms (land from above,
   pass up from below) with z-order occlusion (never stands on a hidden edge);
@@ -41,7 +41,12 @@ See [`DESIGN.md`](DESIGN.md) for the full architecture and roadmap.
 ```
 
 Controls: **left-drag** = pick up & throw · **left-click** = hop ·
-**right-click** = menu · **tray icon** = add pet / quit.
+**right-click** = menu · **tray icon** = quit.
+
+Interactions: right-click → **餵食** picks one of several foods, which drops
+from the top of the screen onto the pet to eat (different fullness/mood values);
+**摸摸** strokes it with a hand and floats hearts (hovering the pet shows a hand
+cursor). The pet also does the odd playful hop on its own.
 
 ## Setup (developers)
 

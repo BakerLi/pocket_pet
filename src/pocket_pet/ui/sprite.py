@@ -67,6 +67,10 @@ class PetSprite:
         elif state is State.SLEEP:
             bob = math.sin(t * 1.4) * h * 0.02    # slow breathing
             squash = 0.04                         # slightly slumped
+        elif state is State.EAT:
+            bob = abs(math.sin(t * 12.0)) * h * 0.03  # quick chewing nods
+        elif state is State.PET:
+            bob = math.sin(t * 5.0) * h * 0.02        # happy little wiggle
 
         cx = w / 2.0
         body_w = w * (0.80 + squash * -1.0) * 0.9 * scale
@@ -96,6 +100,7 @@ class PetSprite:
 
         blink = state is State.IDLE and (t % 3.4) < 0.13
         closed = state is State.SLEEP or blink
+        happy = state is State.PET  # smiling, content eyes while being petted
 
         for sx in (-1, 1):
             ex = cx + sx * eye_dx + gaze
@@ -103,6 +108,11 @@ class PetSprite:
                 p.setPen(QPen(_DARK, max(1.5, w * 0.02)))
                 p.setBrush(Qt.NoBrush)
                 p.drawLine(int(ex - eye_r), int(eye_y), int(ex + eye_r), int(eye_y))
+            elif happy:  # upturned, smiling eyes (∩ ∩)
+                p.setPen(QPen(_DARK, max(1.5, w * 0.022)))
+                p.setBrush(Qt.NoBrush)
+                p.drawArc(int(ex - eye_r), int(eye_y - eye_r * 0.5), int(eye_r * 2), int(eye_r * 2),
+                          20 * 16, 140 * 16)
             elif sad:  # droopy down-turned eyes
                 p.setPen(QPen(_DARK, max(1.5, w * 0.022)))
                 p.setBrush(Qt.NoBrush)
@@ -112,6 +122,16 @@ class PetSprite:
                 p.setPen(Qt.NoPen)
                 p.setBrush(_DARK)
                 p.drawEllipse(int(ex - eye_r), int(eye_y - eye_r), int(eye_r * 2), int(eye_r * 2))
+
+        # Open, chewing mouth while eating.
+        if state is State.EAT:
+            chew = 0.5 + 0.5 * abs(math.sin(t * 12.0))
+            mw = w * 0.14
+            mh = h * 0.07 * chew + 1.0
+            my = eye_y + eye_r * 2.0
+            p.setPen(Qt.NoPen)
+            p.setBrush(_DARK)
+            p.drawEllipse(int(cx + gaze - mw / 2), int(my), int(mw), int(mh))
 
         # cheeks (skip when sad)
         if not sad:
@@ -130,6 +150,27 @@ class PetSprite:
             zx = cx + body_w * 0.45
             zy = top - h * 0.05 - zf * h * 0.18
             p.drawText(int(zx), int(zy), "z")
+
+    def draw_petting_hand(self, p: QPainter, w: int, h: int, t: float) -> None:
+        """A little hand stroking the pet's head, sliding side to side."""
+        p.setRenderHint(QPainter.Antialiasing)
+        sway = math.sin(t * 6.0) * w * 0.12
+        cx = w / 2.0 + sway
+        cy = h * 0.16                      # hovers above the head
+        palm_w, palm_h = w * 0.34, h * 0.24
+
+        skin = QColor(247, 213, 180)
+        edge = QColor(196, 156, 120)
+        p.setPen(QPen(edge, max(1.0, w * 0.012)))
+        p.setBrush(skin)
+        # palm
+        p.drawEllipse(int(cx - palm_w / 2), int(cy), int(palm_w), int(palm_h))
+        # fingers
+        fw = palm_w * 0.20
+        for i in range(4):
+            fx = cx - palm_w * 0.36 + i * palm_w * 0.24
+            p.drawEllipse(int(fx - fw / 2), int(cy - palm_h * 0.32),
+                          int(fw), int(palm_h * 0.7))
 
     def _draw_egg(self, p: QPainter, w: int, h: int, t: float, body_c: QColor, edge_c: QColor) -> None:
         """An unhatched egg: cream shell speckled with the species colour, wobbling."""

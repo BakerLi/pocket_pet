@@ -47,9 +47,9 @@ class Needs:
             self.energy = _clamp(self.energy - ENERGY_DECAY * seconds)
 
     # --- interactions ----------------------------------------------------
-    def feed(self, amount: float = FEED_AMOUNT) -> None:
+    def feed(self, amount: float = FEED_AMOUNT, mood_bonus: float = 5.0) -> None:
         self.fullness = _clamp(self.fullness + amount)
-        self.mood = _clamp(self.mood + 5.0)
+        self.mood = _clamp(self.mood + mood_bonus)
 
     def stroke(self, amount: float = PET_MOOD_BOOST) -> None:
         self.mood = _clamp(self.mood + amount)

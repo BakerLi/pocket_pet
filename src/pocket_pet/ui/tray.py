@@ -1,6 +1,6 @@
 """System tray icon — the app's reliable home (pet windows have no taskbar entry).
 
-Provides the canonical way to spawn another pet or quit.
+Provides the canonical way to quit the app.
 """
 
 from __future__ import annotations
@@ -31,17 +31,9 @@ def build_tray(world) -> QSystemTrayIcon:
     tray.setToolTip("Pocket Pet")
 
     menu = QMenu()
-    menu.addAction("➕  新增寵物", lambda: world.spawn())  # ➕ 新增寵物
-    menu.addSeparator()
     menu.addAction("❌  結束", lambda: world.quit())              # ❌ 結束
     tray.setContextMenu(menu)
     tray._menu = menu  # prevent GC of the menu
 
-    # Double-click the tray icon to spawn another pet.
-    tray.activated.connect(
-        lambda reason: world.spawn()
-        if reason == QSystemTrayIcon.ActivationReason.DoubleClick
-        else None
-    )
     tray.show()
     return tray

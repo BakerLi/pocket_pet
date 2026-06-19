@@ -26,7 +26,7 @@ class World:
         screen_w, _ = winapi.primary_screen_size()
         floor = winapi.primary_work_area()[3]
         self.bounds = Bounds(left=0, right=screen_w, floor=floor)
-        self.windows: list[PetWindow] = []
+        self.pet_window: PetWindow | None = None  # exactly one pet at a time
         self.platforms: list[Platform] = []
         self.tray = None
 
@@ -43,7 +43,7 @@ class World:
 
     def refresh_platforms(self) -> None:
         """Rebuild the perch-platform list from current top-level windows."""
-        skip = {w.hwnd for w in self.windows}  # never perch on our own pets
+        skip = {self.pet_window.hwnd} if self.pet_window else set()  # never perch on our own pet
         wins = winapi.enum_top_level_windows(skip_hwnds=skip)
         self.platforms = [
             Platform(left=l, top=t, right=r, bottom=b, z=i)
@@ -61,6 +61,7 @@ class World:
         identity: Identity | None = None,
         age: float = 0.0,
     ) -> PetWindow:
+        """Create the pet window. Called once at startup (one pet at a time)."""
         rng = rng or random.Random()
         pet = Pet(
             self.bounds,
@@ -75,18 +76,13 @@ class World:
         )
         window = PetWindow(pet, self)
         window.show()
-        self.windows.append(window)
+        self.pet_window = window
         return window
 
-    def remove(self, window: PetWindow) -> None:
-        if window in self.windows:
-            self.windows.remove(window)
-            window.shutdown()
-
     def save_state(self) -> None:
-        """Persist the primary (first) pet's needs + age. Multi-pet save is later."""
-        if self.windows:
-            pet = self.windows[0].pet
+        """Persist the pet's needs + age."""
+        if self.pet_window is not None:
+            pet = self.pet_window.pet
             save_needs(pet.needs, pet.age)
 
     def quit(self) -> None:
