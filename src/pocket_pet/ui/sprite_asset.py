@@ -29,6 +29,7 @@ from pathlib import Path
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QPainter, QPixmap
 
+from ..core.state_machine import State
 from ..sim.growth import Stage
 from .sprite_provider import SpriteContext, SpriteProvider
 
@@ -114,11 +115,14 @@ class AssetProvider(SpriteProvider):
         idx = int(ctx.t * anim.fps) % anim.frames if anim.frames > 1 else 0
         src = QRectF(idx * fw, 0.0, fw, fh)
 
-        # Fit inside the sprite box, preserve aspect, bottom-centre aligned
-        # (feet on the floor line).
+        # Fit inside the sprite box, preserve aspect, bottom aligned (feet on
+        # the floor line). Normally horizontally centred; while climbing, hug
+        # the wall side so the pet sits flush against the window edge. (The
+        # mirror transform below flips dx to the correct side for facing<0, so
+        # ctx.w - dw lands flush against whichever wall it's climbing.)
         scale = min(ctx.w / fw, ctx.h / fh)
         dw, dh = fw * scale, fh * scale
-        dx = (ctx.w - dw) / 2.0
+        dx = (ctx.w - dw) if ctx.state is State.CLIMB else (ctx.w - dw) / 2.0
         dy = ctx.h - dh
 
         p.save()

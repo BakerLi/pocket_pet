@@ -62,10 +62,36 @@ def _cell(src: QImage, anchor: tuple[int, int], flip: bool) -> QImage:
     return cell.mirrored(True, False) if flip else cell
 
 
-def convert(src_dir: Path, out_dir: Path, flip: bool = True) -> None:
+def _content_bbox(img: QImage):
+    """(minx, miny, maxx, maxy) of non-transparent pixels, or None if empty."""
+    img = img.convertToFormat(QImage.Format_ARGB32)
+    w, h = img.width(), img.height()
+
+    def row_has(y):
+        return any(img.pixelColor(x, y).alpha() > 0 for x in range(w))
+
+    def col_has(x):
+        return any(img.pixelColor(x, y).alpha() > 0 for y in range(h))
+
+    miny = next((y for y in range(h) if row_has(y)), None)
+    if miny is None:
+        return None
+    maxy = next(y for y in range(h - 1, -1, -1) if row_has(y))
+    minx = next(x for x in range(w) if col_has(x))
+    maxx = next(x for x in range(w - 1, -1, -1) if col_has(x))
+    return minx, miny, maxx, maxy
+
+
+def convert(src_dir: Path, out_dir: Path, flip: bool = True, pad: int = 2) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
+
     for state, (frames, fps, anchor) in MAPPING.items():
-        imgs = []
+        # Composite this state's frames, then crop to ONE box covering all of
+        # them (shared per state => frames stay aligned, no jitter; per state =>
+        # each state fills the cell instead of a global box dominated by the
+        # widest pose).
+        cells = []
+        union = None
         for stem in frames:
             png = src_dir / f"{stem}.png"
             if not png.exists():
@@ -75,21 +101,35 @@ def convert(src_dir: Path, out_dir: Path, flip: bool = True) -> None:
             if src.isNull():
                 print(f"  ! {state}: unreadable {png.name}")
                 continue
-            imgs.append(_cell(src, anchor, flip))
-        if not imgs:
-            print(f"  - {state}: no frames, skipped")
+            cell = _cell(src, anchor, flip)
+            cells.append(cell)
+            bb = _content_bbox(cell)
+            if bb:
+                union = bb if union is None else (
+                    min(union[0], bb[0]), min(union[1], bb[1]),
+                    max(union[2], bb[2]), max(union[3], bb[3]),
+                )
+        if not cells or union is None:
+            print(f"  - {state}: no content, skipped")
             continue
-        sheet = QImage(CELL * len(imgs), CELL, QImage.Format_ARGB32)
+
+        x0 = max(0, union[0] - pad)
+        y0 = max(0, union[1] - pad)
+        x1 = min(CELL - 1, union[2] + pad)
+        y1 = min(CELL - 1, union[3] + pad)
+        cw, ch = x1 - x0 + 1, y1 - y0 + 1
+
+        sheet = QImage(cw * len(cells), ch, QImage.Format_ARGB32)
         sheet.fill(Qt.transparent)
         p = QPainter(sheet)
-        for i, im in enumerate(imgs):
-            p.drawImage(i * CELL, 0, im)
+        for i, im in enumerate(cells):
+            p.drawImage(i * cw, 0, im.copy(x0, y0, cw, ch))
         p.end()
         sheet.save(str(out_dir / f"{state}.png"))
         (out_dir / f"{state}.json").write_text(
-            json.dumps({"frames": len(imgs), "fps": fps}), encoding="utf-8"
+            json.dumps({"frames": len(cells), "fps": fps}), encoding="utf-8"
         )
-        print(f"  {state}: {len(imgs)} frames @ {fps}fps")
+        print(f"  {state}: {len(cells)} frames @ {fps}fps, cell {cw}x{ch}")
 
 
 def main() -> int:
