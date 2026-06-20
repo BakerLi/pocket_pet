@@ -30,6 +30,8 @@ from ..config import (
     FULL_REFUSE,
     HEART_COUNT,
     HEART_RISE,
+    HYGIENE_DECAY_PER_POOP,
+    HYGIENE_RECOVER,
     LOW_NEED,
     PET_REACT_SECONDS,
     SLEEP_REFUSE,
@@ -103,6 +105,18 @@ class PetWindow(QWidget):
         self._anim += DT
         self.pet.update(DT, self.world.platforms)
         winapi.move_window_physical(self.hwnd, self.pet.body.x, self.pet.body.y)
+
+        # Drop a poop when digestion is ready.
+        if self.pet.wants_poop:
+            self.pet.wants_poop = False
+            b = self.pet.body
+            self.world.spawn_poop(b.x + b.width * 0.5 - 20, b.y + b.height - 40)
+
+        # Hygiene: poops dirty the place; recovers once it's all cleaned.
+        n = len(self.world.poops)
+        h = self.pet.needs.hygiene
+        h += (-HYGIENE_DECAY_PER_POOP * n if n else HYGIENE_RECOVER) * DT
+        self.pet.needs.hygiene = max(0.0, min(100.0, h))
 
         # Ambient chatter.
         self._chatter_t -= DT

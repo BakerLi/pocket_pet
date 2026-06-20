@@ -8,6 +8,9 @@ from __future__ import annotations
 import random
 
 from ..config import (
+    DIGEST_RATE,
+    GUT_PER_FULLNESS,
+    POOP_AMOUNT,
     WEIGHT_BASAL_BURN,
     WEIGHT_MAX,
     WEIGHT_MIN,
@@ -50,12 +53,17 @@ class Pet:
         self.age = age
         self.stage = stage_for(age)
         self.weight = _clamp_weight(weight)
+        # Digestion: gut (undigested food) -> bowel -> poop.
+        self.gut = 0.0
+        self.bowel = 0.0
+        self.wants_poop = False  # set when a poop should drop; UI consumes it
 
     def add_weight(self, kg: float) -> None:
         self.weight = _clamp_weight(self.weight + kg)
 
     def gain_from_food(self, fullness_restored: float) -> None:
         self.add_weight(fullness_restored * WEIGHT_PER_FULLNESS)
+        self.gut += GUT_PER_FULLNESS * fullness_restored
 
     @property
     def state(self) -> State:
@@ -80,6 +88,15 @@ class Pet:
             if self.brain.state in _MOVING:
                 burn += WEIGHT_MOVE_BURN
             self.add_weight(-burn * dt)
+
+            # Digestion: move food gut -> bowel; poop when the bowel fills.
+            if self.gut > 0.0:
+                moved = min(self.gut, DIGEST_RATE * dt)
+                self.gut -= moved
+                self.bowel += moved
+                if self.bowel >= POOP_AMOUNT:
+                    self.bowel -= POOP_AMOUNT
+                    self.wants_poop = True
 
         if self.body.held:
             self.body.climbing = False  # grabbing interrupts a climb

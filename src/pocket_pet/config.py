@@ -58,6 +58,20 @@ FULL_REFUSE = 90.0       # fullness >= this -> refuse more food
 SLEEP_REFUSE = 70.0      # energy >= this -> refuse to sleep on command
 SLEEP_WANT = 30.0        # energy < this -> shows it's sleepy
 
+# --- Digestion -> poop (Phase 2) -------------------------------------------
+# Eating fills the gut; it digests into the bowel over time; when the bowel is
+# full the pet poops. Tuned so ~one feeding -> ~one poop after ~1.5 h.
+GUT_PER_FULLNESS = 1.0                     # gut added per point of fullness fed
+POOP_AMOUNT = 35.0                         # bowel needed for one poop
+DIGEST_SECONDS = 1.5 * 3600               # time to digest one feeding
+DIGEST_RATE = POOP_AMOUNT / DIGEST_SECONDS  # gut -> bowel per second
+POOP_SIZE = 40                            # px box for a poop
+MAX_POOPS = 6                             # cap on-screen poops
+
+# Hygiene: drops while poop is left around, recovers once it's all cleaned.
+HYGIENE_DECAY_PER_POOP = 100.0 / (3.0 * 3600)  # one poop empties hygiene in ~3 h
+HYGIENE_RECOVER = 100.0 / (30.0 * 60)          # clean -> recovers over ~30 min
+
 # --- Weight (kg) -----------------------------------------------------------
 # Feeding adds weight; a steady metabolism burns it (more while moving).
 WEIGHT_START = 3.5
