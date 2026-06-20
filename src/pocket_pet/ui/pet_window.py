@@ -33,6 +33,7 @@ from ..config import (
     HYGIENE_DECAY_PER_POOP,
     HYGIENE_RECOVER,
     LOW_NEED,
+    MEDICINE_HEAL,
     PET_REACT_SECONDS,
     SLEEP_REFUSE,
 )
@@ -175,6 +176,20 @@ class PetWindow(QWidget):
         )
         self.sprite.draw(p, ctx)
 
+        # Sick: tint the pet's pixels green (SourceAtop only paints over the
+        # existing sprite, so transparent areas stay clear) + a sweat drop.
+        if n.sick:
+            p.save()
+            p.setCompositionMode(QPainter.CompositionMode_SourceAtop)
+            p.fillRect(self.rect(), QColor(120, 200, 120, 70))
+            p.restore()
+            w, h = self.width(), self.height()
+            wob = math.sin(self._anim * 4.0) * w * 0.01
+            dx, dy = w * 0.70 + wob, h * 0.20
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(120, 200, 245, 220))
+            p.drawEllipse(int(dx), int(dy), int(w * 0.11), int(h * 0.14))
+
         # A stroking hand while the pet is being petted.
         if self.pet.state is State.PET:
             self.sprite.draw_petting_hand(p, self.width(), self.height(), self._anim)
@@ -277,6 +292,19 @@ class PetWindow(QWidget):
         self.pet.brain.start_reaction(State.EAT, EAT_DURATION)
         self._say(dialogue.pick(self.pet.needs, "feed", self.pet.brain.rng))
 
+    def _medicine(self) -> None:
+        """Give medicine; refuses if the pet isn't sick."""
+        if self.pet.stage is Stage.EGG:
+            return
+        if not self.pet.needs.sick:
+            self._say(dialogue.pick(self.pet.needs, "refuse_medicine", self.pet.brain.rng))
+            return
+        self.pet.needs.sick = False
+        n = self.pet.needs
+        n.health = min(100.0, n.health + MEDICINE_HEAL)
+        self.pet.brain.start_reaction(State.EAT, EAT_DURATION)  # swallow the pill
+        self._say(dialogue.pick(self.pet.needs, "medicine", self.pet.brain.rng))
+
     def _sleep(self) -> None:
         """Tell the pet to sleep; it refuses if it isn't tired enough."""
         if self.pet.stage is Stage.EGG:
@@ -318,6 +346,7 @@ class PetWindow(QWidget):
             feed_menu.addAction(f"{emoji}  {name}", lambda f=food: self._drop_food(f))
         menu.addAction("🤚  摸摸", self._stroke)           # 摸摸
         menu.addAction("😴  睡覺", self._sleep)            # 睡覺(累了才睡)
+        menu.addAction("💊  吃藥", self._medicine)         # 吃藥(生病才吃)
         menu.addAction("ℹ️  狀態", self._open_stats)       # 狀態面板
         menu.addSeparator()
         menu.addAction("❌  結束", lambda: self.world.quit())  # 結束

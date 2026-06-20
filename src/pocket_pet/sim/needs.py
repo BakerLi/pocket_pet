@@ -13,8 +13,11 @@ from ..config import (
     ENERGY_RECOVER,
     FEED_AMOUNT,
     FULLNESS_DECAY,
+    HEALTH_REGEN,
     MOOD_DECAY,
     PET_MOOD_BOOST,
+    SICK_HEALTH_DECAY,
+    SICK_MOOD_EXTRA,
     STARVING_MOOD_FACTOR,
 )
 
@@ -28,8 +31,9 @@ class Needs:
     fullness: float = 100.0
     mood: float = 100.0
     energy: float = 100.0
-    health: float = 100.0    # drops while sick (Phase 3); cured by medicine/rest
+    health: float = 100.0    # drops while sick; cured by medicine, heals when well
     hygiene: float = 100.0   # drops while poop is left around (Phase 2)
+    sick: bool = False       # ill from filth; needs medicine
 
     def decay(self, seconds: float, sleeping: bool = False) -> None:
         """Advance the needs by ``seconds`` of elapsed time.
@@ -47,6 +51,13 @@ class Needs:
             self.energy = _clamp(self.energy + ENERGY_RECOVER * seconds)
         else:
             self.energy = _clamp(self.energy - ENERGY_DECAY * seconds)
+
+        # Health: drained while sick (plus an extra mood hit), heals when well.
+        if self.sick:
+            self.health = _clamp(self.health - SICK_HEALTH_DECAY * seconds)
+            self.mood = _clamp(self.mood - SICK_MOOD_EXTRA * seconds)
+        else:
+            self.health = _clamp(self.health + HEALTH_REGEN * seconds)
 
     # --- interactions ----------------------------------------------------
     def feed(self, amount: float = FEED_AMOUNT, mood_bonus: float = 5.0) -> None:
@@ -73,6 +84,7 @@ class Needs:
             "energy": self.energy,
             "health": self.health,
             "hygiene": self.hygiene,
+            "sick": self.sick,
         }
 
     @classmethod
@@ -83,4 +95,5 @@ class Needs:
             energy=_clamp(float(d.get("energy", 100.0))),
             health=_clamp(float(d.get("health", 100.0))),
             hygiene=_clamp(float(d.get("hygiene", 100.0))),
+            sick=bool(d.get("sick", False)),
         )

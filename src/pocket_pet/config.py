@@ -72,6 +72,14 @@ MAX_POOPS = 6                             # cap on-screen poops
 HYGIENE_DECAY_PER_POOP = 100.0 / (3.0 * 3600)  # one poop empties hygiene in ~3 h
 HYGIENE_RECOVER = 100.0 / (30.0 * 60)          # clean -> recovers over ~30 min
 
+# --- Sickness (Phase 3) ----------------------------------------------------
+SICK_HYGIENE = 30.0                    # below this hygiene, illness can set in
+SICK_ONSET_CHANCE = 1.0 / 600.0        # per second at max filth (hygiene 0)
+SICK_HEALTH_DECAY = 100.0 / (6.0 * 3600)   # being sick drains health over ~6 h
+SICK_MOOD_EXTRA = 100.0 / (8.0 * 3600)     # extra mood drop while sick
+HEALTH_REGEN = 100.0 / (2.0 * 3600)        # heal over ~2 h while healthy
+MEDICINE_HEAL = 35.0                       # health restored by one dose
+
 # --- Weight (kg) -----------------------------------------------------------
 # Feeding adds weight; a steady metabolism burns it (more while moving).
 WEIGHT_START = 3.5

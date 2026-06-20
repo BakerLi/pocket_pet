@@ -69,12 +69,13 @@ class StatsPanel(QWidget):
         feed = QPushButton("🍖 餵食")
         stroke = QPushButton("🤚 摸摸")
         sleep = QPushButton("😴 睡覺")
+        med = QPushButton("💊 吃藥")
         feed.clicked.connect(self._feed)
         stroke.clicked.connect(self._stroke)
         sleep.clicked.connect(self._sleep)
-        btns.addWidget(feed)
-        btns.addWidget(stroke)
-        btns.addWidget(sleep)
+        med.clicked.connect(self._medicine)
+        for btn in (feed, stroke, sleep, med):
+            btns.addWidget(btn)
         layout.addLayout(btns)
 
         self._timer = QTimer(self)
@@ -103,6 +104,11 @@ class StatsPanel(QWidget):
             self.window_ref._sleep()
         self._refresh()
 
+    def _medicine(self) -> None:
+        if self.window_ref is not None:
+            self.window_ref._medicine()
+        self._refresh()
+
     def _refresh(self) -> None:
         n = self.pet.needs
         self._name.setText(self.pet.identity.display)
@@ -111,6 +117,8 @@ class StatsPanel(QWidget):
         for key in ("fullness", "mood", "energy", "health", "hygiene"):
             self._bars[key].setValue(int(getattr(n, key)))
         hints = []
+        if n.sick:
+            hints.append("🤒 生病")
         if n.energy < SLEEP_WANT:
             hints.append("💤 想睡")
         self._status.setText("　".join(hints))

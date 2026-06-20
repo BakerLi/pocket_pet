@@ -11,6 +11,8 @@ from ..config import (
     DIGEST_RATE,
     GUT_PER_FULLNESS,
     POOP_AMOUNT,
+    SICK_HYGIENE,
+    SICK_ONSET_CHANCE,
     WEIGHT_BASAL_BURN,
     WEIGHT_MAX,
     WEIGHT_MIN,
@@ -97,6 +99,13 @@ class Pet:
                 if self.bowel >= POOP_AMOUNT:
                     self.bowel -= POOP_AMOUNT
                     self.wants_poop = True
+
+            # Filthy surroundings can make the pet sick (more likely the dirtier
+            # it is). Once sick it stays sick until given medicine.
+            if not self.needs.sick and self.needs.hygiene < SICK_HYGIENE:
+                severity = (SICK_HYGIENE - self.needs.hygiene) / SICK_HYGIENE
+                if self.brain.rng.random() < SICK_ONSET_CHANCE * severity * dt:
+                    self.needs.sick = True
 
         if self.body.held:
             self.body.climbing = False  # grabbing interrupts a climb

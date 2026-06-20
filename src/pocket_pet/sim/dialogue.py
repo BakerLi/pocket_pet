@@ -16,6 +16,8 @@ _EVENT_LINES = {
     "pet": ["好舒服…", "嘿嘿 ♥", "最喜歡你了", "再摸一下嘛~"],
     "refuse_full": ["吃不下了…", "好飽~不要了", "等等再吃啦", "肚子好撐"],
     "refuse_sleep": ["還不睏耶", "我不想睡!", "現在很有精神~", "再玩一下嘛"],
+    "medicine": ["唔…良藥苦口", "謝謝,好多了", "苦…但舒服多了", "病要快點好~"],
+    "refuse_medicine": ["我沒生病呀", "不用吃藥啦", "我很健康喔!", "才不要吃苦苦的"],
 }
 
 _NEED_LINES = {
@@ -25,12 +27,17 @@ _NEED_LINES = {
 }
 
 _HAPPY_LINES = ["今天天氣真好~", "在忙什麼呢?", "♪~", "我在看著你哦", "要不要休息一下?"]
+_SICK_LINES = ["好難受…", "我是不是生病了…", "頭好暈…", "想吃藥…", "咳…咳…"]
 
 
 def pick(needs: Needs, event: str | None, rng: random.Random) -> str | None:
-    """Pick a line. ``event`` is 'greet'/'feed'/'pet' or None for ambient."""
+    """Pick a line. ``event`` is 'greet'/'feed'/'pet'/... or None for ambient."""
     if event is not None:
         return rng.choice(_EVENT_LINES[event])
+
+    # A sick pet mostly grumbles about feeling unwell.
+    if needs.sick and rng.random() < 0.7:
+        return rng.choice(_SICK_LINES)
 
     name, value = needs.lowest
     if value < LOW_NEED:
