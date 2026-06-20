@@ -28,6 +28,7 @@ LAND_MIN_IMPACT = 800.0     # px/s; gentler touchdowns (small hops) don't bounce
 # Behavior timing (seconds), [min, max] picked at random.
 IDLE_DURATION = (0.8, 3.0)
 WALK_DURATION = (1.5, 4.5)
+IDLE2_CHANCE = 0.25    # when idling, odds of the alternate idle (e.g. grooming)
 
 # Update loop.
 FPS = 60

@@ -34,6 +34,9 @@ CELL = 128  # Shimeji frames are 128x128 with anchor ~ (64,128) = bottom-centre
 MAPPING = {
     # Stand: mostly still with an occasional blink (shime1a).
     "idle":  (["shime1"] * 5 + ["shime1a"], 6.0, (64, 128)),
+    # CleanAction (grooming) -> alternate idle for variety. (eat now comes from
+    # the user's eat2 sheet via tools/process_eat2.py, not from here.)
+    "idle2": (["shime15", "shime16", "shime17", "shime27", "shime28"], 5.0, (64, 128)),
     "walk":  (["shime2", "shime3", "shime3a", "shime3b", "shime3c", "shime3d"], 10.0, (64, 128)),
     # Run: the dash cycle (faster than walk).
     "run":   (["shime3e", "shime3f", "shime3g", "shime3h", "shime3i"], 14.0, (64, 128)),
@@ -45,8 +48,6 @@ MAPPING = {
     "land":  (["shime18", "shime19"], 12.0, (64, 128)),
     # Sprawl: laying down -> our sleep.
     "sleep": (["shime20", "shime21"], 1.5, (64, 128)),
-    # CleanAction (grooming) is the closest analogue to eating.
-    "eat":   (["shime15", "shime16", "shime17", "shime27", "shime28"], 8.0, (64, 128)),
     "pet":   ([f"shime{n}" for n in range(45, 58)], 12.0, (64, 128)),
     # ClimbWall going up: a short clean cycle. (Anchor is 50,128 in the pack.)
     "climb": (["shime14", "shime12", "shime13"], 8.0, (50, 128)),

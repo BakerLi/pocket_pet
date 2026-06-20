@@ -62,7 +62,7 @@ class ProceduralProvider(SpriteProvider):
             leg_swing = math.sin(t * freq) * w * (0.14 if state is State.RUN else 0.10)
         elif state is State.LAND:
             squash = 0.18  # flattened on impact
-        elif state is State.IDLE:
+        elif state in (State.IDLE, State.IDLE2):
             bob = math.sin(t * 2.2) * h * 0.012  # gentle breathing
         elif state is State.FALL:
             squash = -0.10                        # stretched while falling

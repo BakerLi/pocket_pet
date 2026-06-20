@@ -14,6 +14,7 @@ from ..config import (
     CLIMB_CHANCE,
     CLIMB_MAX_SECONDS,
     CLIMB_SPEED,
+    IDLE2_CHANCE,
     IDLE_DURATION,
     JUMP_CHANCE,
     JUMP_VELOCITY,
@@ -32,6 +33,7 @@ from .physics import Body, StepResult
 
 class State(enum.Enum):
     IDLE = "idle"
+    IDLE2 = "idle2"  # alternate idle (e.g. grooming) for variety
     WALK = "walk"
     RUN = "run"    # sprinting (faster than walk)
     FALL = "fall"
@@ -71,7 +73,8 @@ class Brain:
         self._react_t = duration
 
     def _enter_idle(self) -> None:
-        self.state = State.IDLE
+        # Occasionally pick the alternate idle (grooming) for variety.
+        self.state = State.IDLE2 if self.rng.random() < IDLE2_CHANCE else State.IDLE
         self._timer = self._roll(IDLE_DURATION)
 
     def _enter_walk(self) -> None:
@@ -156,7 +159,7 @@ class Brain:
                 return
 
         self._timer -= dt
-        if self.state is State.IDLE:
+        if self.state in (State.IDLE, State.IDLE2):
             body.vx = 0.0
             # Every so often, do a playful little hop (but not off a perch).
             if not body.on_platform and self.rng.random() < JUMP_CHANCE * dt:
