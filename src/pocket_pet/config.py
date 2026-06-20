@@ -16,6 +16,15 @@ CLIMB_SPEED = 95.0       # px / s the pet climbs upward
 CLIMB_MAX_SECONDS = 14.0 # safety cap so a stuck climb always ends
 CLIMB_CHANCE = 0.7       # on bumping a wall, odds it climbs (vs turning around)
 
+# Running: occasionally sprint instead of walk.
+RUN_SPEED = 320.0           # px / s
+RUN_CHANCE = 0.35           # when starting to move, odds of a run vs a walk
+RUN_DURATION = (1.0, 2.5)   # seconds, [min, max]
+
+# Landing bounce: a brief squash when touching down from a real fall.
+LAND_SECONDS = 0.22         # how long the bounce pose holds
+LAND_MIN_IMPACT = 800.0     # px/s; gentler touchdowns (small hops) don't bounce
+
 # Behavior timing (seconds), [min, max] picked at random.
 IDLE_DURATION = (0.8, 3.0)
 WALK_DURATION = (1.5, 4.5)

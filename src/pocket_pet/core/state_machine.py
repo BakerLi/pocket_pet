@@ -17,6 +17,11 @@ from ..config import (
     IDLE_DURATION,
     JUMP_CHANCE,
     JUMP_VELOCITY,
+    LAND_MIN_IMPACT,
+    LAND_SECONDS,
+    RUN_CHANCE,
+    RUN_DURATION,
+    RUN_SPEED,
     SLEEP_ENTER,
     SLEEP_EXIT,
     WALK_DURATION,
@@ -28,16 +33,18 @@ from .physics import Body, StepResult
 class State(enum.Enum):
     IDLE = "idle"
     WALK = "walk"
+    RUN = "run"    # sprinting (faster than walk)
     FALL = "fall"
     DRAG = "drag"  # being held by the cursor
     SLEEP = "sleep"  # too tired; recovering energy
     EAT = "eat"    # eating a food that dropped in (transient)
     PET = "pet"    # being petted (transient)
     CLIMB = "climb"  # scaling a window's side edge
+    LAND = "land"  # brief squash on touching down from a fall (transient)
 
 
 # States that play out for a fixed time and freeze ordinary movement.
-_REACTION_STATES = (State.EAT, State.PET)
+_REACTION_STATES = (State.EAT, State.PET, State.LAND)
 
 
 class Brain:
@@ -72,6 +79,15 @@ class Brain:
         self.facing = self.rng.choice((-1, 1))
         self._timer = self._roll(WALK_DURATION)
 
+    def _enter_move(self) -> None:
+        """Start moving: usually a walk, sometimes a run."""
+        if self.rng.random() < RUN_CHANCE:
+            self.state = State.RUN
+            self.facing = self.rng.choice((-1, 1))
+            self._timer = self._roll(RUN_DURATION)
+        else:
+            self._enter_walk()
+
     def react(
         self, body: Body, result: StepResult, dt: float, needs=None, can_walk: bool = True
     ) -> None:
@@ -105,6 +121,12 @@ class Brain:
             return
 
         if self.state in (State.FALL, State.DRAG):  # just landed / just released near ground
+            # Bounce on a real impact; gentle touchdowns just settle to idle.
+            if result.landed and can_walk and result.land_impact >= LAND_MIN_IMPACT:
+                self.state = State.LAND
+                self._react_t = LAND_SECONDS
+                body.vx = 0.0
+                return
             self._enter_idle()
 
         # An egg can't walk or sleep — it just sits and wobbles.
@@ -142,8 +164,9 @@ class Brain:
                 body.on_ground = False
                 return
             if self._timer <= 0:
-                self._enter_walk()
-        elif self.state is State.WALK:
-            body.vx = WALK_SPEED * self.facing
+                self._enter_move()
+        elif self.state in (State.WALK, State.RUN):
+            speed = RUN_SPEED if self.state is State.RUN else WALK_SPEED
+            body.vx = speed * self.facing
             if self._timer <= 0:
                 self._enter_idle()

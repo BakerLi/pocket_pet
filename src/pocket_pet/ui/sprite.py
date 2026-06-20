@@ -55,9 +55,13 @@ class ProceduralProvider(SpriteProvider):
         bob = 0.0          # vertical body offset
         squash = 0.0       # >0 = wider+flatter (landing), <0 = taller (falling)
         leg_swing = 0.0
-        if state is State.WALK:
-            bob = -abs(math.sin(t * 9.0)) * h * 0.05
-            leg_swing = math.sin(t * 9.0) * w * 0.10
+        if state in (State.WALK, State.RUN):
+            freq = 15.0 if state is State.RUN else 9.0
+            amp = 0.08 if state is State.RUN else 0.05
+            bob = -abs(math.sin(t * freq)) * h * amp
+            leg_swing = math.sin(t * freq) * w * (0.14 if state is State.RUN else 0.10)
+        elif state is State.LAND:
+            squash = 0.18  # flattened on impact
         elif state is State.IDLE:
             bob = math.sin(t * 2.2) * h * 0.012  # gentle breathing
         elif state is State.FALL:

@@ -67,6 +67,7 @@ class StepResult:
     hit_left: bool = False
     hit_right: bool = False
     started_climb: bool = False  # grabbed a window wall this step
+    land_impact: float = 0.0     # downward speed at the moment of landing (px/s)
 
 
 def _covered(cx: float, top: float, platforms, own_z: int) -> bool:
@@ -203,6 +204,7 @@ def step(body: Body, bounds: Bounds, dt: float, platforms=()) -> StepResult:
         body.y = best_top - body.height
         if not body.on_ground:
             result.landed = True
+            result.land_impact = body.vy  # impact speed before we zero it
         body.vy = 0.0
         body.on_ground = True
         body.on_platform = best_is_platform
@@ -214,10 +216,11 @@ def step(body: Body, bounds: Bounds, dt: float, platforms=()) -> StepResult:
     # below the taskbar line), where the landing check above can't catch it.
     if body.y + body.height > bounds.floor:
         body.y = bounds.floor - body.height
-        if body.vy > 0:
-            body.vy = 0.0
         if not body.on_ground:
             result.landed = True
+            result.land_impact = body.vy
+        if body.vy > 0:
+            body.vy = 0.0
         body.on_ground = True
         body.on_platform = False
 

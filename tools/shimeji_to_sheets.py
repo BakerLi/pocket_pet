@@ -35,9 +35,14 @@ MAPPING = {
     # Stand: mostly still with an occasional blink (shime1a).
     "idle":  (["shime1"] * 5 + ["shime1a"], 6.0, (64, 128)),
     "walk":  (["shime2", "shime3", "shime3a", "shime3b", "shime3c", "shime3d"], 10.0, (64, 128)),
+    # Run: the dash cycle (faster than walk).
+    "run":   (["shime3e", "shime3f", "shime3g", "shime3h", "shime3i"], 14.0, (64, 128)),
     "fall":  (["shime4"], 1.0, (64, 128)),
-    # Pinched (dragged): the centred dangle frames.
-    "drag":  (["shime5a", "shime5ab"], 3.0, (64, 128)),
+    # Pinched (dragged): swing through the lean poses and back (ping-pong so it
+    # loops smoothly without a jump from the last frame to the first).
+    "drag":  (["shime6", "shime7", "shime8", "shime9", "shime10", "shime9", "shime8", "shime7"], 6.0, (64, 128)),
+    # Bouncing: the landing squash.
+    "land":  (["shime18", "shime19"], 12.0, (64, 128)),
     # Sprawl: laying down -> our sleep.
     "sleep": (["shime20", "shime21"], 1.5, (64, 128)),
     # CleanAction (grooming) is the closest analogue to eating.
