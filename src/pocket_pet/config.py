@@ -80,6 +80,22 @@ SICK_MOOD_EXTRA = 100.0 / (8.0 * 3600)     # extra mood drop while sick
 HEALTH_REGEN = 100.0 / (2.0 * 3600)        # heal over ~2 h while healthy
 MEDICINE_HEAL = 35.0                       # health restored by one dose
 
+# --- Death (Phase 4) -------------------------------------------------------
+STARVE_DEATH_SECONDS = 30.0 * 60     # fullness pinned at 0 this long -> starves
+DEPRESS_DEATH_SECONDS = 45.0 * 60    # mood pinned at 0 this long -> dies of sorrow
+# (health reaching 0 from illness kills immediately)
+CAUSE_STARVE = "餓壞了"
+CAUSE_DEPRESS = "鬱鬱而終"
+CAUSE_ILLNESS = "病重不治"
+DEATH_FLAVOURS = [
+    "謝謝你陪我走過這段桌面時光。",
+    "別難過,我只是去別的視窗探險了。",
+    "記得…要好好吃飯喔。",
+    "下輩子還要當你的桌寵。",
+    "願我在雲端安息 ☁️",
+]
+DEV_ENV = "POCKET_PET_DEV"           # set to 1 to unlock the revive backdoor
+
 # --- Weight (kg) -----------------------------------------------------------
 # Feeding adds weight; a steady metabolism burns it (more while moving).
 WEIGHT_START = 3.5

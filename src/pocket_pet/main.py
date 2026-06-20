@@ -32,9 +32,9 @@ def main() -> int:
     # The primary pet's species is deterministic from this machine+user (à la Buddy).
     identity = species.generate(winapi.device_id())
 
-    saved, elapsed, age, weight = load_needs()
-    pet = world.spawn(needs=saved, identity=identity, age=age, weight=weight)
-    if saved is not None and elapsed > 60:
+    saved, elapsed, age, weight, death = load_needs()
+    pet = world.spawn(needs=saved, identity=identity, age=age, weight=weight, death=death)
+    if saved is not None and elapsed > 60 and not death.get("dead"):
         mins = int(elapsed // 60)
         pet._say(f"你回來啦~ (離開了 {mins} 分鐘)")
 

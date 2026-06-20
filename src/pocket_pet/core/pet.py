@@ -8,11 +8,17 @@ from __future__ import annotations
 import random
 
 from ..config import (
+    CAUSE_DEPRESS,
+    CAUSE_ILLNESS,
+    CAUSE_STARVE,
+    DEATH_FLAVOURS,
+    DEPRESS_DEATH_SECONDS,
     DIGEST_RATE,
     GUT_PER_FULLNESS,
     POOP_AMOUNT,
     SICK_HYGIENE,
     SICK_ONSET_CHANCE,
+    STARVE_DEATH_SECONDS,
     WEIGHT_BASAL_BURN,
     WEIGHT_MAX,
     WEIGHT_MIN,
@@ -46,6 +52,10 @@ class Pet:
         identity: Identity | None = None,
         age: float = 0.0,
         weight: float = WEIGHT_START,
+        dead: bool = False,
+        death_cause: str = "",
+        death_age: float = 0.0,
+        death_flavour: str = "",
     ):
         self.bounds = bounds
         self.body = Body(x=x, y=y, width=width, height=height)
@@ -59,6 +69,36 @@ class Pet:
         self.gut = 0.0
         self.bowel = 0.0
         self.wants_poop = False  # set when a poop should drop; UI consumes it
+        # Death (permanent until a dev revive).
+        self.dead = dead
+        self.death_cause = death_cause
+        self.death_age = death_age
+        self.death_flavour = death_flavour
+        self._starve_t = 0.0
+        self._depress_t = 0.0
+        self.just_died = False  # one-shot signal for the UI
+
+    def _die(self, cause: str) -> None:
+        self.dead = True
+        self.just_died = True
+        self.death_cause = cause
+        self.death_age = self.age
+        self.death_flavour = self.brain.rng.choice(DEATH_FLAVOURS)
+        b = self.body
+        b.vx = b.vy = 0.0
+        b.held = b.climbing = False
+        b.on_ground = True
+        b.y = self.bounds.floor - b.height  # the body rests; UI shows a grave
+
+    def revive(self) -> None:
+        """Developer backdoor: bring a dead pet back."""
+        self.dead = False
+        self.death_cause = self.death_flavour = ""
+        self._starve_t = self._depress_t = 0.0
+        self.needs = Needs(fullness=70, mood=70, energy=70, health=100, hygiene=90)
+        self.body.y = 60.0
+        self.body.vy = 0.0
+        self.body.on_ground = False
 
     def add_weight(self, kg: float) -> None:
         self.weight = _clamp_weight(self.weight + kg)
@@ -77,6 +117,9 @@ class Pet:
 
     def update(self, dt: float, platforms=()) -> StepResult:
         """Integrate age + needs + physics, then let the brain react."""
+        if self.dead:
+            return StepResult()  # a grave doesn't age, decay, or move
+
         self.age += dt
         self.stage = stage_for(self.age)
         is_egg = self.stage is Stage.EGG
@@ -106,6 +149,19 @@ class Pet:
                 severity = (SICK_HYGIENE - self.needs.hygiene) / SICK_HYGIENE
                 if self.brain.rng.random() < SICK_ONSET_CHANCE * severity * dt:
                     self.needs.sick = True
+
+            # Death from prolonged neglect or untreated illness.
+            n = self.needs
+            self._starve_t = self._starve_t + dt if n.fullness <= 0 else 0.0
+            self._depress_t = self._depress_t + dt if n.mood <= 0 else 0.0
+            if n.health <= 0:
+                self._die(CAUSE_ILLNESS)
+            elif self._starve_t >= STARVE_DEATH_SECONDS:
+                self._die(CAUSE_STARVE)
+            elif self._depress_t >= DEPRESS_DEATH_SECONDS:
+                self._die(CAUSE_DEPRESS)
+            if self.dead:
+                return StepResult()
 
         if self.body.held:
             self.body.climbing = False  # grabbing interrupts a climb

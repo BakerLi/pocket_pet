@@ -14,16 +14,18 @@ Interaction (Phase 2):
 from __future__ import annotations
 
 import math
+import os
 import time
 
 import win32api
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter
-from PySide6.QtWidgets import QMenu, QWidget
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen
+from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
 
 from ..config import (
     BUBBLE_SECONDS,
     CHATTER_INTERVAL,
+    DEV_ENV,
     DT,
     EAT_DURATION,
     FOODS,
@@ -47,7 +49,7 @@ from .speech_bubble import SpeechBubble
 from .sprite import ProceduralProvider
 from .sprite_asset import AssetProvider
 from .sprite_provider import SpriteContext
-from .stats_panel import StatsPanel
+from .stats_panel import StatsPanel, _fmt_age
 
 _DRAG_THRESHOLD = 4      # physical px of movement before a press counts as a drag
 _MAX_THROW = 2600.0      # px/s cap on release velocity
@@ -74,6 +76,8 @@ class PetWindow(QWidget):
         self._food: FoodWindow | None = None      # at most one food in the air
         self._hearts: list[list[float]] = []      # [x, y, t, life] in window px
         self._heart_font = QFont("Segoe UI", 11)
+        self._emoji_font = QFont("Segoe UI Emoji", 12)  # sick skull, etc.
+        self._was_dead = False
 
         self.bubble = SpeechBubble()
         self._chatter_t = self.pet.brain.rng.uniform(*CHATTER_INTERVAL)
@@ -106,6 +110,18 @@ class PetWindow(QWidget):
         self._anim += DT
         self.pet.update(DT, self.world.platforms)
         winapi.move_window_physical(self.hwnd, self.pet.body.x, self.pet.body.y)
+
+        # Death: freeze interactions, show a grave, mourn once.
+        if self.pet.dead:
+            if not self._was_dead:
+                self._was_dead = True
+                self._say(self.pet.death_flavour or "再見了…")
+            b = self.pet.body
+            self.bubble.place_above(b.x + b.width / 2.0, b.y)
+            self.update()
+            return
+        if self._was_dead:  # revived
+            self._was_dead = False
 
         # Drop a poop when digestion is ready.
         if self.pet.wants_poop:
@@ -165,6 +181,9 @@ class PetWindow(QWidget):
 
     def paintEvent(self, _) -> None:
         p = QPainter(self)
+        if self.pet.dead:
+            self._draw_tombstone(p)
+            return
         n = self.pet.needs
         sad = n.mood < LOW_NEED or n.fullness < LOW_NEED
         ctx = SpriteContext(
@@ -184,11 +203,9 @@ class PetWindow(QWidget):
             p.fillRect(self.rect(), QColor(120, 200, 120, 70))
             p.restore()
             w, h = self.width(), self.height()
-            wob = math.sin(self._anim * 4.0) * w * 0.01
-            dx, dy = w * 0.70 + wob, h * 0.20
-            p.setPen(Qt.NoPen)
-            p.setBrush(QColor(120, 200, 245, 220))
-            p.drawEllipse(int(dx), int(dy), int(w * 0.11), int(h * 0.14))
+            wob = math.sin(self._anim * 4.0) * w * 0.02
+            p.setFont(self._emoji_font)
+            p.drawText(int(w * 0.60 + wob), int(h * 0.32), "💀")
 
         # A stroking hand while the pet is being petted.
         if self.pet.state is State.PET:
@@ -202,12 +219,46 @@ class PetWindow(QWidget):
                 p.setPen(QColor(235, 90, 120, alpha))
                 p.drawText(int(hx), int(hy), "♥")
 
+    def _draw_tombstone(self, p: QPainter) -> None:
+        w, h = self.width(), self.height()
+        p.setRenderHint(QPainter.Antialiasing)
+        sw, sh = w * 0.62, h * 0.72
+        x, y = (w - sw) / 2, h - sh - 2
+        p.setPen(QPen(QColor(90, 92, 100), max(1.5, w * 0.02)))
+        p.setBrush(QColor(158, 160, 170))
+        # headstone: rounded top via a rounded rect with generous radius
+        p.drawRoundedRect(int(x), int(y), int(sw), int(sh), int(sw * 0.45), int(sw * 0.45))
+        p.drawRect(int(x), int(y + sh * 0.4), int(sw), int(sh * 0.6))
+        p.setPen(QColor(70, 72, 80))
+        p.setFont(self._heart_font)
+        p.drawText(int(x), int(y + sh * 0.42), int(sw), int(sh * 0.3),
+                   Qt.AlignCenter, "R.I.P")
+
+    def _epitaph(self) -> str:
+        sp = self.pet.identity.species.name
+        return (
+            f"🪦 長眠於此的{sp}\n"
+            f"享年 {_fmt_age(self.pet.death_age)}\n"
+            f"死因:{self.pet.death_cause}\n\n"
+            f"「{self.pet.death_flavour}」"
+        )
+
+    def _show_epitaph(self) -> None:
+        box = QMessageBox(self)
+        box.setWindowTitle("🪦 墓誌銘")
+        box.setText(self._epitaph())
+        box.setStandardButtons(QMessageBox.Ok)
+        box.exec()
+
     # --- interaction -----------------------------------------------------
     def mousePressEvent(self, e) -> None:
         if e.button() == Qt.RightButton:
             self._show_menu(e.globalPosition().toPoint())
             return
         if e.button() != Qt.LeftButton:
+            return
+        if self.pet.dead:          # a grave: click to read the epitaph, no drag
+            self._show_epitaph()
             return
         cx, cy = win32api.GetCursorPos()  # physical px
         self._grab_dx = cx - self.pet.body.x
@@ -221,7 +272,7 @@ class PetWindow(QWidget):
         self.grabMouse()  # keep receiving moves even when the cursor outruns the window
 
     def mouseMoveEvent(self, e) -> None:
-        if not (e.buttons() & Qt.LeftButton):
+        if self.pet.dead or not (e.buttons() & Qt.LeftButton):
             return
         cx, cy = win32api.GetCursorPos()
         if not self._moved and math.hypot(cx - self._press_xy[0], cy - self._press_xy[1]) > _DRAG_THRESHOLD:
@@ -243,7 +294,7 @@ class PetWindow(QWidget):
             self._last_t = now
 
     def mouseReleaseEvent(self, e) -> None:
-        if e.button() != Qt.LeftButton:
+        if e.button() != Qt.LeftButton or self.pet.dead:
             return
         self.releaseMouse()
         self.pet.body.held = False
@@ -340,6 +391,14 @@ class PetWindow(QWidget):
 
     def _show_menu(self, global_pos) -> None:
         menu = QMenu(self)
+        if self.pet.dead:
+            menu.addAction("🪦  墓誌銘", self._show_epitaph)
+            if os.environ.get(DEV_ENV):  # developer backdoor
+                menu.addAction("🔧  復活", self.world.revive_pet)
+            menu.addSeparator()
+            menu.addAction("❌  結束", lambda: self.world.quit())
+            menu.exec(global_pos)
+            return
         feed_menu = menu.addMenu("🍽️  餵食")              # 餵食(多種食物)
         for food in FOODS:
             _key, emoji, name, _f, _m = food

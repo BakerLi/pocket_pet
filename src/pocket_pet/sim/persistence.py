@@ -25,7 +25,15 @@ def save_path() -> Path:
     return save_dir() / "pet.json"
 
 
-def save_needs(needs: Needs, age: float = 0.0, weight: float = 3.5) -> None:
+def save_needs(
+    needs: Needs,
+    age: float = 0.0,
+    weight: float = 3.5,
+    dead: bool = False,
+    death_cause: str = "",
+    death_age: float = 0.0,
+    death_flavour: str = "",
+) -> None:
     d = save_dir()
     d.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -34,28 +42,41 @@ def save_needs(needs: Needs, age: float = 0.0, weight: float = 3.5) -> None:
         "age": age,
         "weight": weight,
         "needs": needs.to_dict(),
+        "death": {
+            "dead": dead,
+            "cause": death_cause,
+            "age": death_age,
+            "flavour": death_flavour,
+        },
     }
     tmp = save_path().with_suffix(".tmp")
     tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     tmp.replace(save_path())  # atomic-ish: avoid a half-written save
 
 
-def load_needs() -> tuple[Needs | None, float, float, float]:
-    """Return (needs, elapsed_seconds, age_seconds, weight); needs None if no save.
+_NO_DEATH = {"dead": False, "cause": "", "age": 0.0, "flavour": ""}
+
+
+def load_needs() -> tuple[Needs | None, float, float, float, dict]:
+    """Return (needs, elapsed_seconds, age_seconds, weight, death); needs None if no save.
 
     Offline decay is already applied; the pet also ages by the elapsed time.
+    A dead pet's needs/age aren't decayed (it stays as it died).
     """
     path = save_path()
     if not path.exists():
-        return None, 0.0, 0.0, 3.5
+        return None, 0.0, 0.0, 3.5, dict(_NO_DEATH)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return None, 0.0, 0.0, 3.5
+        return None, 0.0, 0.0, 3.5, dict(_NO_DEATH)
 
+    death = {**_NO_DEATH, **data.get("death", {})}
     needs = Needs.from_dict(data.get("needs", {}))
     elapsed = max(0.0, time.time() - float(data.get("last_saved", time.time())))
-    needs.decay(elapsed, sleeping=False)
-    age = float(data.get("age", 0.0)) + elapsed
+    age = float(data.get("age", 0.0))
+    if not death["dead"]:
+        needs.decay(elapsed, sleeping=False)
+        age += elapsed
     weight = float(data.get("weight", 3.5))
-    return needs, elapsed, age, weight
+    return needs, elapsed, age, weight, death

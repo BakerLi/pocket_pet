@@ -66,9 +66,11 @@ class World:
         identity: Identity | None = None,
         age: float = 0.0,
         weight: float = 3.5,
+        death: dict | None = None,
     ) -> PetWindow:
         """Create the pet window. Called once at startup (one pet at a time)."""
         rng = rng or random.Random()
+        death = death or {}
         pet = Pet(
             self.bounds,
             width=PET_SIZE,
@@ -80,6 +82,10 @@ class World:
             identity=identity,
             age=age,
             weight=weight,
+            dead=bool(death.get("dead", False)),
+            death_cause=death.get("cause", ""),
+            death_age=float(death.get("age", 0.0)),
+            death_flavour=death.get("flavour", ""),
         )
         window = PetWindow(pet, self)
         window.show()
@@ -98,6 +104,11 @@ class World:
             self.poops.remove(poop)
             poop.shutdown()
 
+    def revive_pet(self) -> None:
+        """Developer backdoor: revive a dead pet (see DEV_ENV)."""
+        if self.pet_window is not None and self.pet_window.pet.dead:
+            self.pet_window.pet.revive()
+
     def recall_pet(self) -> None:
         """Bring a lost pet back: re-drop it at center-top with a clean state."""
         if self.pet_window is None:
@@ -111,10 +122,13 @@ class World:
         b.on_ground = False
 
     def save_state(self) -> None:
-        """Persist the pet's needs + age + weight."""
+        """Persist the pet's needs + age + weight + death state."""
         if self.pet_window is not None:
             pet = self.pet_window.pet
-            save_needs(pet.needs, pet.age, pet.weight)
+            save_needs(
+                pet.needs, pet.age, pet.weight,
+                pet.dead, pet.death_cause, pet.death_age, pet.death_flavour,
+            )
 
     def quit(self) -> None:
         self.save_state()

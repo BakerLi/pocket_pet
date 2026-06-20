@@ -44,6 +44,14 @@ See [`DESIGN.md`](DESIGN.md) for the full architecture and roadmap.
   wherever art is missing — so art can land one species/state at a time. The
   rabbit is the first fully-arted species (8 states, multi-frame); see
   `tools/gen_rabbit_art.py` and `assets/sprites/README.md`.
+- **Life-sim v2 (done).** Health, hygiene and weight (kg) join the needs; the
+  pet **digests food and poops** (clean it by clicking; poop rests on windows
+  and falls when they close), left-around poop drops **hygiene** which can make
+  it **sick** (green tint + 💀, cure with 💊 medicine). It runs, does a landing
+  bounce, naps on command, and politely **refuses** food/sleep/medicine it
+  doesn't need. Prolonged starvation, sustained sadness, or untreated illness
+  lead to **permanent death** — a 🪦 tombstone with an epitaph (click to read).
+  Set `POCKET_PET_DEV=1` for a hidden tray "復活" revive backdoor.
 
 ### Run the pet
 
