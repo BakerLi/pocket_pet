@@ -25,6 +25,25 @@ def save_path() -> Path:
     return save_dir() / "pet.json"
 
 
+def dev_mode_enabled() -> bool:
+    """Developer mode (e.g. the revive backdoor) is on if EITHER:
+
+    * the env var ``POCKET_PET_DEV`` is set, or
+    * a file named ``dev`` exists in the save dir (%APPDATA%/pocket_pet/dev).
+
+    The file is the easy way for a double-clicked exe — just create an empty
+    file there and relaunch.
+    """
+    from ..config import DEV_ENV
+
+    if os.environ.get(DEV_ENV):
+        return True
+    try:
+        return (save_dir() / "dev").exists()
+    except OSError:
+        return False
+
+
 def save_needs(
     needs: Needs,
     age: float = 0.0,

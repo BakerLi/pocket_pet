@@ -14,7 +14,6 @@ Interaction (Phase 2):
 from __future__ import annotations
 
 import math
-import os
 import time
 
 import win32api
@@ -25,7 +24,6 @@ from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
 from ..config import (
     BUBBLE_SECONDS,
     CHATTER_INTERVAL,
-    DEV_ENV,
     DT,
     EAT_DURATION,
     FOODS,
@@ -44,6 +42,7 @@ from ..core.state_machine import State
 from ..platform import winapi
 from ..sim import dialogue
 from ..sim.growth import Stage
+from ..sim.persistence import dev_mode_enabled
 from .food import FoodWindow
 from .speech_bubble import SpeechBubble
 from .sprite import ProceduralProvider
@@ -393,7 +392,7 @@ class PetWindow(QWidget):
         menu = QMenu(self)
         if self.pet.dead:
             menu.addAction("🪦  墓誌銘", self._show_epitaph)
-            if os.environ.get(DEV_ENV):  # developer backdoor
+            if dev_mode_enabled():  # developer backdoor
                 menu.addAction("🔧  復活", self.world.revive_pet)
             menu.addSeparator()
             menu.addAction("❌  結束", lambda: self.world.quit())

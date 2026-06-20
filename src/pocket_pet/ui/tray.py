@@ -5,13 +5,11 @@ Provides the canonical way to quit the app.
 
 from __future__ import annotations
 
-import os
-
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
-from ..config import DEV_ENV
+from ..sim.persistence import dev_mode_enabled
 
 
 def _make_icon() -> QIcon:
@@ -36,7 +34,7 @@ def build_tray(world) -> QSystemTrayIcon:
 
     menu = QMenu()
     menu.addAction("🏠  把寵物找回來", lambda: world.recall_pet())  # 🏠 找回跑掉的寵物
-    if os.environ.get(DEV_ENV):  # developer backdoor to revive a dead pet
+    if dev_mode_enabled():  # developer backdoor to revive a dead pet
         menu.addAction("🔧  復活寵物", lambda: world.revive_pet())
     menu.addSeparator()
     menu.addAction("❌  結束", lambda: world.quit())              # ❌ 結束
