@@ -53,6 +53,20 @@ SLEEP_EXIT = 90.0        # energy above this -> it wakes up
 FEED_AMOUNT = 35.0       # fullness restored per feeding
 PET_MOOD_BOOST = 18.0    # mood restored per pet/stroke
 
+# --- Refusal (懂得拒絕) -----------------------------------------------------
+FULL_REFUSE = 90.0       # fullness >= this -> refuse more food
+SLEEP_REFUSE = 70.0      # energy >= this -> refuse to sleep on command
+SLEEP_WANT = 30.0        # energy < this -> shows it's sleepy
+
+# --- Weight (kg) -----------------------------------------------------------
+# Feeding adds weight; a steady metabolism burns it (more while moving).
+WEIGHT_START = 3.5
+WEIGHT_MIN = 2.0
+WEIGHT_MAX = 6.0
+WEIGHT_PER_FULLNESS = 0.004              # kg gained per point of fullness fed
+WEIGHT_BASAL_BURN = 0.6 / (24 * 3600)   # ~0.6 kg/day at rest
+WEIGHT_MOVE_BURN = 1.2 / (24 * 3600)    # extra while walking/running/climbing
+
 # --- Food types ------------------------------------------------------------
 # (key, emoji, display name, fullness restored, mood bonus). Picked from the
 # right-click "餵食" submenu; the chosen food drops from the top of the screen

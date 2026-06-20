@@ -25,13 +25,14 @@ def save_path() -> Path:
     return save_dir() / "pet.json"
 
 
-def save_needs(needs: Needs, age: float = 0.0) -> None:
+def save_needs(needs: Needs, age: float = 0.0, weight: float = 3.5) -> None:
     d = save_dir()
     d.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": SAVE_VERSION,
         "last_saved": time.time(),
         "age": age,
+        "weight": weight,
         "needs": needs.to_dict(),
     }
     tmp = save_path().with_suffix(".tmp")
@@ -39,21 +40,22 @@ def save_needs(needs: Needs, age: float = 0.0) -> None:
     tmp.replace(save_path())  # atomic-ish: avoid a half-written save
 
 
-def load_needs() -> tuple[Needs | None, float, float]:
-    """Return (needs, elapsed_seconds, age_seconds); needs is None if no save.
+def load_needs() -> tuple[Needs | None, float, float, float]:
+    """Return (needs, elapsed_seconds, age_seconds, weight); needs None if no save.
 
     Offline decay is already applied; the pet also ages by the elapsed time.
     """
     path = save_path()
     if not path.exists():
-        return None, 0.0, 0.0
+        return None, 0.0, 0.0, 3.5
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return None, 0.0, 0.0
+        return None, 0.0, 0.0, 3.5
 
     needs = Needs.from_dict(data.get("needs", {}))
     elapsed = max(0.0, time.time() - float(data.get("last_saved", time.time())))
     needs.decay(elapsed, sleeping=False)
     age = float(data.get("age", 0.0)) + elapsed
-    return needs, elapsed, age
+    weight = float(data.get("weight", 3.5))
+    return needs, elapsed, age, weight

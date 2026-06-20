@@ -60,6 +60,7 @@ class World:
         needs: Needs | None = None,
         identity: Identity | None = None,
         age: float = 0.0,
+        weight: float = 3.5,
     ) -> PetWindow:
         """Create the pet window. Called once at startup (one pet at a time)."""
         rng = rng or random.Random()
@@ -73,6 +74,7 @@ class World:
             needs=needs,
             identity=identity,
             age=age,
+            weight=weight,
         )
         window = PetWindow(pet, self)
         window.show()
@@ -92,10 +94,10 @@ class World:
         b.on_ground = False
 
     def save_state(self) -> None:
-        """Persist the pet's needs + age."""
+        """Persist the pet's needs + age + weight."""
         if self.pet_window is not None:
             pet = self.pet_window.pet
-            save_needs(pet.needs, pet.age)
+            save_needs(pet.needs, pet.age, pet.weight)
 
     def quit(self) -> None:
         self.save_state()

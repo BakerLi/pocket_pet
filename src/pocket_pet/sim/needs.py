@@ -28,6 +28,8 @@ class Needs:
     fullness: float = 100.0
     mood: float = 100.0
     energy: float = 100.0
+    health: float = 100.0    # drops while sick (Phase 3); cured by medicine/rest
+    hygiene: float = 100.0   # drops while poop is left around (Phase 2)
 
     def decay(self, seconds: float, sleeping: bool = False) -> None:
         """Advance the needs by ``seconds`` of elapsed time.
@@ -65,7 +67,13 @@ class Needs:
 
     # --- serialization ---------------------------------------------------
     def to_dict(self) -> dict:
-        return {"fullness": self.fullness, "mood": self.mood, "energy": self.energy}
+        return {
+            "fullness": self.fullness,
+            "mood": self.mood,
+            "energy": self.energy,
+            "health": self.health,
+            "hygiene": self.hygiene,
+        }
 
     @classmethod
     def from_dict(cls, d: dict) -> "Needs":
@@ -73,4 +81,6 @@ class Needs:
             fullness=_clamp(float(d.get("fullness", 100.0))),
             mood=_clamp(float(d.get("mood", 100.0))),
             energy=_clamp(float(d.get("energy", 100.0))),
+            health=_clamp(float(d.get("health", 100.0))),
+            hygiene=_clamp(float(d.get("hygiene", 100.0))),
         )

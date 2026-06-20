@@ -27,10 +27,12 @@ from ..config import (
     DT,
     EAT_DURATION,
     FOODS,
+    FULL_REFUSE,
     HEART_COUNT,
     HEART_RISE,
     LOW_NEED,
     PET_REACT_SECONDS,
+    SLEEP_REFUSE,
 )
 from ..core.pet import Pet
 from ..core.state_machine import State
@@ -243,6 +245,9 @@ class PetWindow(QWidget):
         if self.pet.stage is Stage.EGG:
             self._say("還是顆蛋呢…")  # eggs don't eat
             return
+        if self.pet.needs.fullness >= FULL_REFUSE:  # too full -> refuse
+            self._say(dialogue.pick(self.pet.needs, "refuse_full", self.pet.brain.rng))
+            return
         if self._food is not None:  # one piece in the air at a time
             return
         _key, emoji, _name, fullness, mood_bonus = food
@@ -254,8 +259,20 @@ class PetWindow(QWidget):
     def _consume(self, fullness: float, mood_bonus: float) -> None:
         self._food = None
         self.pet.needs.feed(fullness, mood_bonus)
+        self.pet.gain_from_food(fullness)
         self.pet.brain.start_reaction(State.EAT, EAT_DURATION)
         self._say(dialogue.pick(self.pet.needs, "feed", self.pet.brain.rng))
+
+    def _sleep(self) -> None:
+        """Tell the pet to sleep; it refuses if it isn't tired enough."""
+        if self.pet.stage is Stage.EGG:
+            return
+        if self.pet.needs.energy >= SLEEP_REFUSE:
+            self._say(dialogue.pick(self.pet.needs, "refuse_sleep", self.pet.brain.rng))
+            return
+        if self.pet.body.on_ground and not self.pet.body.held:
+            self.pet.brain.force_sleep()
+            self._say("呼…晚安~")
 
     def _stroke(self) -> None:
         self.pet.needs.stroke()
@@ -286,6 +303,7 @@ class PetWindow(QWidget):
             _key, emoji, name, _f, _m = food
             feed_menu.addAction(f"{emoji}  {name}", lambda f=food: self._drop_food(f))
         menu.addAction("🤚  摸摸", self._stroke)           # 摸摸
+        menu.addAction("😴  睡覺", self._sleep)            # 睡覺(累了才睡)
         menu.addAction("ℹ️  狀態", self._open_stats)       # 狀態面板
         menu.addSeparator()
         menu.addAction("❌  結束", lambda: self.world.quit())  # 結束

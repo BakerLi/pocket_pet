@@ -61,6 +61,11 @@ class Brain:
     def _roll(self, span: tuple[float, float]) -> float:
         return self.rng.uniform(*span)
 
+    def force_sleep(self) -> None:
+        """Put the pet to sleep on command; it stays until energy recovers."""
+        if self.state not in (State.FALL, State.DRAG, State.CLIMB):
+            self.state = State.SLEEP
+
     def start_reaction(self, state: State, duration: float) -> None:
         """Enter a transient state (EAT/PET) held for ``duration`` seconds.
 

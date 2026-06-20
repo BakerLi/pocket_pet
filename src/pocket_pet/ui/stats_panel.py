@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..config import SLEEP_WANT
+
 
 def _fmt_age(seconds: float) -> str:
     s = int(seconds)
@@ -40,12 +42,20 @@ class StatsPanel(QWidget):
         self._rarity = QLabel(f"稀有度：{ident.rarity.label}")
         self._rarity.setStyleSheet(f"color: rgb({r},{g},{b}); font-weight: bold;")
         self._stage = QLabel()
+        self._weight = QLabel()
+        self._status = QLabel()  # sleepy / (later) sick hints
+        self._status.setStyleSheet("color: rgb(110,120,200);")
         layout.addWidget(self._name)
         layout.addWidget(self._rarity)
         layout.addWidget(self._stage)
+        layout.addWidget(self._weight)
+        layout.addWidget(self._status)
 
         self._bars: dict[str, QProgressBar] = {}
-        for key, label in (("fullness", "飽食度"), ("mood", "心情"), ("energy", "精力")):
+        for key, label in (
+            ("fullness", "飽食度"), ("mood", "心情"), ("energy", "精力"),
+            ("health", "健康"), ("hygiene", "清潔度"),
+        ):
             row = QHBoxLayout()
             row.addWidget(QLabel(label))
             bar = QProgressBar()
@@ -58,10 +68,13 @@ class StatsPanel(QWidget):
         btns = QHBoxLayout()
         feed = QPushButton("🍖 餵食")
         stroke = QPushButton("🤚 摸摸")
+        sleep = QPushButton("😴 睡覺")
         feed.clicked.connect(self._feed)
         stroke.clicked.connect(self._stroke)
+        sleep.clicked.connect(self._sleep)
         btns.addWidget(feed)
         btns.addWidget(stroke)
+        btns.addWidget(sleep)
         layout.addLayout(btns)
 
         self._timer = QTimer(self)
@@ -85,10 +98,19 @@ class StatsPanel(QWidget):
             self.pet.needs.stroke()
         self._refresh()
 
+    def _sleep(self) -> None:
+        if self.window_ref is not None:
+            self.window_ref._sleep()
+        self._refresh()
+
     def _refresh(self) -> None:
         n = self.pet.needs
         self._name.setText(self.pet.identity.display)
         self._stage.setText(f"階段：{self.pet.stage.label}（{_fmt_age(self.pet.age)}）")
-        self._bars["fullness"].setValue(int(n.fullness))
-        self._bars["mood"].setValue(int(n.mood))
-        self._bars["energy"].setValue(int(n.energy))
+        self._weight.setText(f"體重：{self.pet.weight:.2f} kg")
+        for key in ("fullness", "mood", "energy", "health", "hygiene"):
+            self._bars[key].setValue(int(getattr(n, key)))
+        hints = []
+        if n.energy < SLEEP_WANT:
+            hints.append("💤 想睡")
+        self._status.setText("　".join(hints))
