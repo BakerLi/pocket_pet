@@ -12,3 +12,5 @@ art_src/
 # local Claude Code settings (personal, machine-specific)
 .claude/settings.local.json
 # pocket_pet save data is in %APPDATA%, not repo
+# launcher bats may embed a real API key — keep them out of the repo
+start_pocketpet_*.bat

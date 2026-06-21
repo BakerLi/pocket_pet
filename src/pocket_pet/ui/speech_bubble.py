@@ -24,7 +24,7 @@ from ..platform import winapi
 
 _PAD = 10
 _TAIL = 7
-_MAX_W = 260  # logical px before wrapping isn't handled — keep lines short
+_MAX_W = 300  # logical px; longer lines wrap onto multiple rows
 
 
 class SpeechBubble(QWidget):
@@ -45,11 +45,15 @@ class SpeechBubble(QWidget):
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self.hide)
 
+    _WRAP = Qt.AlignCenter | Qt.TextWordWrap
+
     def say(self, text: str, seconds: float) -> None:
         fm = QFontMetrics(self._font)
-        tw = min(_MAX_W, fm.horizontalAdvance(text))
+        # Wrap long lines: measure the multi-row block within a max width.
+        block = fm.boundingRect(0, 0, _MAX_W, 10000, self._WRAP, text)
+        tw = max(24, min(_MAX_W, block.width()))
         w = tw + 2 * _PAD
-        h = fm.height() + 2 * _PAD + _TAIL
+        h = block.height() + 2 * _PAD + _TAIL
         self._text = text
         self.resize(int(w), int(h))
         self.show()
@@ -91,4 +95,6 @@ class SpeechBubble(QWidget):
         p.drawPolygon(tail)
 
         p.setPen(QColor(40, 40, 55))
-        p.drawText(0, 0, w, body_h, Qt.AlignCenter, self._text)
+        p.drawText(
+            _PAD, _PAD, w - 2 * _PAD, body_h - 2 * _PAD, self._WRAP, self._text
+        )

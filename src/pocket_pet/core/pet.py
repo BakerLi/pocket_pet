@@ -12,6 +12,7 @@ from ..config import (
     CAUSE_ILLNESS,
     CAUSE_STARVE,
     DEATH_FLAVOURS,
+    DEATH_FLAVOURS_BY_CAUSE,
     DEPRESS_DEATH_SECONDS,
     DIGEST_RATE,
     GUT_PER_FULLNESS,
@@ -83,7 +84,9 @@ class Pet:
         self.just_died = True
         self.death_cause = cause
         self.death_age = self.age
-        self.death_flavour = self.brain.rng.choice(DEATH_FLAVOURS)
+        self.death_flavour = self.brain.rng.choice(
+            DEATH_FLAVOURS_BY_CAUSE.get(cause, DEATH_FLAVOURS)
+        )
         b = self.body
         b.vx = b.vy = 0.0
         b.held = b.climbing = False

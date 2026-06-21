@@ -94,6 +94,25 @@ DEATH_FLAVOURS = [
     "下輩子還要當你的桌寵。",
     "願我在雲端安息 ☁️",
 ]
+# Preset last words per cause of death (fallback when AI is off/unavailable).
+# Each line roasts first, then turns warm at the end.
+DEATH_FLAVOURS_BY_CAUSE = {
+    CAUSE_STARVE: [
+        "都怪你不餵我…笨蛋…不過,能當你的寵物…我很開心…",
+        "餓死我了啦…哼…但…謝謝你陪我這一場…",
+        "連口飯都不給…真小氣…算了,下輩子…我還找你…",
+    ],
+    CAUSE_DEPRESS: [
+        "都沒人陪我…好寂寞…可是…遇見你…還是值得的…",
+        "你都不理我…哼…不過…別太難過喔,笨蛋…",
+        "無聊死了啦…但…謝謝你曾經…把我放在心上…",
+    ],
+    CAUSE_ILLNESS: [
+        "藥都不給我…真過分…可是…還是…最喜歡你了…",
+        "咳…病死了啦…笨主人…要…好好照顧自己喔…",
+        "都怪你不救我…哼…謝謝你…陪我走到最後…",
+    ],
+}
 DEV_ENV = "POCKET_PET_DEV"           # set to 1 to unlock the revive backdoor
 
 # --- Weight (kg) -----------------------------------------------------------
@@ -129,7 +148,66 @@ SAVE_INTERVAL_MS = 30000  # autosave cadence
 
 # --- Speech bubbles --------------------------------------------------------
 CHATTER_INTERVAL = (12.0, 22.0)  # seconds between ambient lines (random in range)
-BUBBLE_SECONDS = 3.5             # how long a bubble stays up
+BUBBLE_SECONDS = 3.5             # legacy fixed duration (fallback)
+# A bubble's on-screen time scales with how much there is to read, so longer
+# (AI) lines linger and short quips flash by.
+BUBBLE_MIN_SECONDS = 2.5
+BUBBLE_MAX_SECONDS = 10.0
+BUBBLE_SECONDS_PER_CHAR = 0.22   # added reading time per character
+
+# --- AI snark (Gemini) -----------------------------------------------------
+# The pet can voice AI-generated lines via Google's Gemini API. The key is read
+# from the env var GEMINI_API_KEY, else %APPDATA%/pocket_pet/gemini_key.txt
+# (neither lives in the repo, so it never gets committed). With no key / no
+# network / quota exhausted / any error, it silently falls back to the built-in
+# preset lines in dialogue.py — AI is a topping, never a dependency.
+AI_KEY_ENV = "GEMINI_API_KEY"
+AI_KEY_FILE = "gemini_key.txt"        # in the save dir (%APPDATA%/pocket_pet)
+AI_CONFIG_FILE = "ai_config.json"     # {enabled, personality, model}
+AI_DEFAULT_MODEL = "gemini-2.5-flash" # change in ai_config.json if you like
+AI_DEFAULT_ENABLED = True
+AI_DEFAULT_PERSONALITY = "savage"
+# "Snark about what you're doing": peeks at the foreground window's title/app and
+# comments on it. Privacy-sensitive (titles can hold filenames/URLs), so it is
+# OFF by default and only ever runs when both a key is present AND you opt in.
+AI_DEFAULT_WINDOW_SNARK = True
+WINDOW_SNARK_INTERVAL = (180.0, 360.0)  # s between window peeks (random in range)
+# Occasional philosophical/existential musings, generated on demand from the live
+# context (time, festival, memory, + weather/window if those are also on). Off by
+# default; toggle in the tray.
+AI_DEFAULT_PHILOSOPHY = True
+PHILOSOPHY_INTERVAL = (240.0, 480.0)    # s between musings (random in range)
+# Optional weather flavour via wttr.in (free, no key). Sends your approximate
+# location (IP) to a third party — still a toggle, but on by default here.
+AI_DEFAULT_WEATHER = True
+WEATHER_URL = "https://wttr.in/?format=%C+%t&lang=zh"  # e.g. "晴 +27°C"
+WEATHER_CACHE_SECONDS = 3600.0          # refetch weather at most hourly
+WEATHER_TIMEOUT = 8.0                    # s network timeout for the weather fetch
+
+# Personality presets: key -> (display name, persona fed to Gemini). Pick one in
+# ai_config.json ("personality": "tsundere"); each pet's species/shiny is mixed
+# in too so lines feel like *this* pet.
+AI_PERSONALITIES = {
+    "savage":   ("毒舌", "個性毒舌、嘴巴很壞、超愛吐槽主人,但其實是刀子嘴豆腐心。"),
+    "tsundere": ("傲嬌", "傲嬌,嘴上嫌棄、口嫌體正直,偶爾流露關心又急著否認。"),
+    "chuuni":   ("中二", "中二病,自稱被封印的魔王,講話浮誇愛用厲害的詞,其實只是隻桌寵。"),
+    "gentle":   ("溫柔", "溫柔療癒、講話暖心貼心,偶爾對主人撒嬌。"),
+}
+
+# Generation / caching. One API call batch-fills every situation at once, so the
+# pet talks instantly from the local pool and we rarely hit the network.
+AI_LINES_PER_BUCKET = 5         # lines per situation requested each batch
+AI_MAX_PER_BUCKET = 12          # cap pooled lines per situation
+AI_POOL_LOW_WATER = 20          # total pooled lines at/below this -> refill
+AI_MIN_REFILL_INTERVAL = 90.0   # s; never batch-generate more often than this
+AI_FAIL_BACKOFF = 300.0         # s to wait after an API error before retrying
+# A whole batch (~15 situations) takes ~7-8 s even with "thinking" disabled, so
+# keep this generous; it runs on a background thread and never blocks the pet.
+AI_REQUEST_TIMEOUT = 30.0       # s network timeout per request
+AI_MAX_LINE_CHARS = 60          # defensively drop only truly runaway lines
+
+NEGLECT_SECONDS = 20.0 * 60     # no interaction this long -> "neglected" chatter
+THROW_SNARK_SPEED = 900.0       # px/s release speed above which a throw earns a yell
 
 # --- Growth (age in seconds; advances in real time, including offline) -----
 EGG_UNTIL = 120.0      # stays an egg for the first ~2 min, then hatches

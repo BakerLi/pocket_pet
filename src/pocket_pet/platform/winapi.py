@@ -30,6 +30,7 @@ from ctypes import wintypes
 import win32api
 import win32con
 import win32gui
+import win32process
 
 # --- DWM attribute ids -----------------------------------------------------
 DWMWA_EXTENDED_FRAME_BOUNDS = 9  # the *visual* rect, excluding Win10/11 invisible border
@@ -134,6 +135,39 @@ def enum_top_level_windows(skip_hwnds: set[int] | None = None) -> list[dict]:
 
     win32gui.EnumWindows(_cb, None)
     return out
+
+
+def active_window_info() -> dict | None:
+    """The foreground window's ``{"hwnd", "title", "proc"}`` (proc = exe name,
+    best-effort), or None if there's nothing useful to report.
+
+    Used only by the opt-in "snark about what you're doing" feature; the caller
+    is responsible for the privacy gate. Window titles can contain sensitive
+    text, so nothing here is sent anywhere unless that feature is enabled.
+    """
+    try:
+        hwnd = win32gui.GetForegroundWindow()
+        if not hwnd:
+            return None
+        title = win32gui.GetWindowText(hwnd)
+        if not title:
+            return None
+        proc = ""
+        try:
+            _tid, pid = win32process.GetWindowThreadProcessId(hwnd)
+            h = win32api.OpenProcess(
+                win32con.PROCESS_QUERY_INFORMATION | win32con.PROCESS_VM_READ,
+                False, pid,
+            )
+            try:
+                proc = os.path.basename(win32process.GetModuleFileNameEx(h, 0))
+            finally:
+                win32api.CloseHandle(h)
+        except Exception:
+            proc = ""  # access denied (elevated app etc.) — title alone is fine
+        return {"hwnd": hwnd, "title": title, "proc": proc}
+    except Exception:
+        return None
 
 
 # --- screen geometry -------------------------------------------------------

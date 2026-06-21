@@ -18,6 +18,7 @@ _EVENT_LINES = {
     "refuse_sleep": ["還不睏耶", "我不想睡!", "現在很有精神~", "再玩一下嘛"],
     "medicine": ["唔…良藥苦口", "謝謝,好多了", "苦…但舒服多了", "病要快點好~"],
     "refuse_medicine": ["我沒生病呀", "不用吃藥啦", "我很健康喔!", "才不要吃苦苦的"],
+    "thrown": ["哇啊啊——!", "你想摔死我喔!", "頭好暈…放我下來!", "我會記住這筆帳的!"],
 }
 
 _NEED_LINES = {
@@ -28,6 +29,23 @@ _NEED_LINES = {
 
 _HAPPY_LINES = ["今天天氣真好~", "在忙什麼呢?", "♪~", "我在看著你哦", "要不要休息一下?"]
 _SICK_LINES = ["好難受…", "我是不是生病了…", "頭好暈…", "想吃藥…", "咳…咳…"]
+
+
+def line_for(bucket: str, rng: random.Random) -> str:
+    """A guaranteed preset line for a chosen situation (never None).
+
+    Used as the fallback once the caller has *already* decided the pet should
+    speak (e.g. AINarrator picked a bucket), so we must not re-roll silence the
+    way :func:`pick` does. Unknown/extra buckets (night/neglected) map to the
+    happy lines.
+    """
+    if bucket in _NEED_LINES:
+        return rng.choice(_NEED_LINES[bucket])
+    if bucket == "sick":
+        return rng.choice(_SICK_LINES)
+    if bucket in _EVENT_LINES:
+        return rng.choice(_EVENT_LINES[bucket])
+    return rng.choice(_HAPPY_LINES)
 
 
 def pick(needs: Needs, event: str | None, rng: random.Random) -> str | None:

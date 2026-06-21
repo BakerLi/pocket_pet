@@ -13,6 +13,7 @@ Interaction (Phase 2):
 
 from __future__ import annotations
 
+import collections
 import math
 import time
 
@@ -22,7 +23,12 @@ from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
 
 from ..config import (
-    BUBBLE_SECONDS,
+    BUBBLE_MAX_SECONDS,
+    BUBBLE_MIN_SECONDS,
+    BUBBLE_SECONDS_PER_CHAR,
+    CAUSE_DEPRESS,
+    CAUSE_ILLNESS,
+    CAUSE_STARVE,
     CHATTER_INTERVAL,
     DT,
     EAT_DURATION,
@@ -34,13 +40,17 @@ from ..config import (
     HYGIENE_RECOVER,
     LOW_NEED,
     MEDICINE_HEAL,
+    NEGLECT_SECONDS,
     PET_REACT_SECONDS,
+    PHILOSOPHY_INTERVAL,
     SLEEP_REFUSE,
+    THROW_SNARK_SPEED,
+    WINDOW_SNARK_INTERVAL,
 )
 from ..core.pet import Pet
 from ..core.state_machine import State
 from ..platform import winapi
-from ..sim import dialogue
+from ..sim import ai, dialogue
 from ..sim.growth import Stage
 from ..sim.persistence import dev_mode_enabled, time_scale
 from .food import FoodWindow
@@ -82,6 +92,17 @@ class PetWindow(QWidget):
         self.bubble = SpeechBubble()
         self._chatter_t = self.pet.brain.rng.uniform(*CHATTER_INTERVAL)
         self._last_stage = self.pet.stage
+
+        # AI snark (optional): a per-pet pool of Gemini lines, with preset
+        # fallback. Always created; it stays dormant until a key + enabled.
+        self._recent: collections.deque[str] = collections.deque(maxlen=5)
+        self._last_interact = time.time()
+        self._ai = ai.AINarrator(self._ai_context)
+        # Opt-in "snark about the active window" pacing + change detection.
+        self._win_snark_t = self.pet.brain.rng.uniform(*WINDOW_SNARK_INTERVAL)
+        self._last_win_title = ""
+        self._musing_t = self.pet.brain.rng.uniform(*PHILOSOPHY_INTERVAL)
+        self._epitaph_upgraded = True  # set False at death until the AI line lands
         self._panel: StatsPanel | None = None
         self._body_color, self._edge_color = self._palette()
 
@@ -116,13 +137,28 @@ class PetWindow(QWidget):
         if self.pet.dead:
             if not self._was_dead:
                 self._was_dead = True
+                bucket = self._DEATH_BUCKET.get(self.pet.death_cause)
+                epitaph = self._ai.pick(bucket) if bucket else None  # by cause
+                if epitaph:
+                    self.pet.death_flavour = epitaph  # persisted + shown on grave
                 self._say(self.pet.death_flavour or "再見了…")
+                # Then upgrade to a memory-aware bespoke epitaph once it arrives.
+                self._epitaph_upgraded = not self._ai.request_epitaph(
+                    self.pet.death_cause, _fmt_age(self.pet.death_age)
+                )
+            elif not self._epitaph_upgraded:
+                better = self._ai.take_comment()
+                if better:
+                    self._epitaph_upgraded = True
+                    self.pet.death_flavour = better  # persisted + shown on grave
+                    self._say(better)
             b = self.pet.body
             self.bubble.place_above(b.x + b.width / 2.0, b.y)
             self.update()
             return
         if self._was_dead:  # revived
             self._was_dead = False
+            self._epitaph_upgraded = True
 
         # Drop a poop when digestion is ready.
         if self.pet.wants_poop:
@@ -140,7 +176,18 @@ class PetWindow(QWidget):
         self._chatter_t -= DT
         if self._chatter_t <= 0:
             self._chatter_t = self.pet.brain.rng.uniform(*CHATTER_INTERVAL)
-            self._say(dialogue.pick(self.pet.needs, None, self.pet.brain.rng))
+            self._say(self._ambient_line())
+
+        # Opt-in one-shots (window snark / philosophical musings): show any ready
+        # line, then occasionally request a new one.
+        if self._ai.available():
+            pending = self._ai.take_comment()
+            if pending:
+                self._say(pending)
+            if ai.window_snark_enabled():
+                self._tick_window_snark()
+            if ai.philosophy_enabled():
+                self._tick_philosophy()
 
         # Growth milestones.
         if self.pet.stage is not self._last_stage:
@@ -174,9 +221,114 @@ class PetWindow(QWidget):
         er, eg, eb = ident.species.edge
         return QColor(br, bg, bb), QColor(er, eg, eb)
 
+    # --- AI snark helpers ------------------------------------------------
+    _STAGE_LABEL = {Stage.EGG: "蛋", Stage.BABY: "幼年", Stage.ADULT: "成年"}
+    _DEATH_BUCKET = {
+        CAUSE_STARVE: "death_starve",
+        CAUSE_DEPRESS: "death_depress",
+        CAUSE_ILLNESS: "death_illness",
+    }
+
+    def _ai_context(self) -> dict:
+        """Snapshot for the AI narrator. Called on a background thread, so it
+        only reads plain values (no Qt, no mutation)."""
+        n = self.pet.needs
+        ident = self.pet.identity
+        lt = time.localtime()
+        return {
+            "species": ident.species.name,
+            "shiny": ident.shiny,
+            "stage": self._STAGE_LABEL.get(self.pet.stage, "成年"),
+            "needs": {
+                "fullness": round(n.fullness),
+                "mood": round(n.mood),
+                "energy": round(n.energy),
+                "health": round(n.health),
+                "hygiene": round(n.hygiene),
+                "sick": n.sick,
+            },
+            "weight": round(self.pet.weight, 1),
+            "hour": lt.tm_hour,
+            "date": time.strftime("%m-%d", lt),
+            "recent": list(self._recent),
+        }
+
+    def _interacted(self, note: str | None = None) -> None:
+        """Mark a fresh interaction (resets the neglect timer; logs for AI)."""
+        self._last_interact = time.time()
+        if note:
+            self._recent.append(note)
+
+    def _line(self, event: str) -> str | None:
+        """An AI line for ``event`` if available, else the preset for it."""
+        return self._ai.pick(event) or dialogue.pick(
+            self.pet.needs, event, self.pet.brain.rng
+        )
+
+    def _ambient_bucket(self) -> str | None:
+        """Which situation to chatter about now (None = stay quiet). Mirrors
+        dialogue.pick's proportions, plus night/neglected extras."""
+        n = self.pet.needs
+        rng = self.pet.brain.rng
+        if n.sick and rng.random() < 0.7:
+            return "sick"
+        name, value = n.lowest
+        if value < LOW_NEED:
+            return name
+        if time.time() - self._last_interact > NEGLECT_SECONDS and rng.random() < 0.5:
+            return "neglected"
+        if 1 <= time.localtime().tm_hour < 5 and rng.random() < 0.5:
+            return "night"
+        if rng.random() < 0.5:
+            return None  # content pet stays quiet about half the time
+        return "happy"
+
+    def _tick_window_snark(self) -> None:
+        """Occasionally request a snark about the current foreground window.
+        Skips eggs and our own windows."""
+        self._win_snark_t -= DT
+        if self._win_snark_t > 0 or self.pet.stage is Stage.EGG:
+            return
+        self._win_snark_t = self.pet.brain.rng.uniform(*WINDOW_SNARK_INTERVAL)
+        info = winapi.active_window_info()
+        if not info or info["title"] == "Pocket Pet":
+            return
+        title = info["title"]
+        # Comment on a new window, or now and then on a long-lived one.
+        if title != self._last_win_title or self.pet.brain.rng.random() < 0.35:
+            self._last_win_title = title
+            self._ai.request_window_comment(title, info["proc"])
+
+    def _tick_philosophy(self) -> None:
+        """Occasionally request a philosophical musing from the live context."""
+        self._musing_t -= DT
+        if self._musing_t > 0 or self.pet.stage is Stage.EGG:
+            return
+        self._musing_t = self.pet.brain.rng.uniform(*PHILOSOPHY_INTERVAL)
+        # Include the active window only if window snark is also opted in.
+        title = ""
+        if ai.window_snark_enabled():
+            info = winapi.active_window_info()
+            if info and info["title"] != "Pocket Pet":
+                title = info["title"]
+        self._ai.request_musing(title)
+
+    def _ambient_line(self) -> str | None:
+        bucket = self._ambient_bucket()
+        if bucket is None:
+            return None  # already decided to stay quiet
+        # Bucket chosen -> we WILL speak: guarantee a preset if AI has nothing.
+        return self._ai.pick(bucket) or dialogue.line_for(
+            bucket, self.pet.brain.rng
+        )
+
     def _say(self, line: str | None) -> None:
         if line:
-            self.bubble.say(line, BUBBLE_SECONDS)
+            secs = min(
+                BUBBLE_MAX_SECONDS,
+                max(BUBBLE_MIN_SECONDS, BUBBLE_MIN_SECONDS + BUBBLE_SECONDS_PER_CHAR * len(line)),
+            )
+            self.bubble.say(line, secs)
             b = self.pet.body
             self.bubble.place_above(b.x + b.width / 2.0, b.y)
 
@@ -306,12 +458,16 @@ class PetWindow(QWidget):
                 scale = _MAX_THROW / speed
                 vx, vy = vx * scale, vy * scale
             self.pet.body.vx, self.pet.body.vy = vx, vy
+            if speed > THROW_SNARK_SPEED:  # flung hard enough to protest
+                self._interacted("被甩飛出去")
+                self._say(self._line("thrown"))
         else:
             self._greet()  # plain click
 
     def _greet(self) -> None:
         self._hop()
-        self._say(dialogue.pick(self.pet.needs, "greet", self.pet.brain.rng))
+        self._interacted()
+        self._say(self._line("greet"))
 
     def _hop(self) -> None:
         self.pet.body.vy = _HOP_VELOCITY
@@ -330,44 +486,46 @@ class PetWindow(QWidget):
             self._say("Zzz…")
             return
         if self.pet.needs.fullness >= FULL_REFUSE:  # too full -> refuse
-            self._say(dialogue.pick(self.pet.needs, "refuse_full", self.pet.brain.rng))
+            self._say(self._line("refuse_full"))
             return
         if self._food is not None:  # one piece in the air at a time
             return
-        _key, emoji, _name, fullness, mood_bonus = food
+        _key, emoji, name, fullness, mood_bonus = food
         self._food = FoodWindow(
             self.pet, emoji,
-            on_eaten=lambda: self._consume(fullness, mood_bonus),
+            on_eaten=lambda: self._consume(fullness, mood_bonus, name),
         )
 
-    def _consume(self, fullness: float, mood_bonus: float) -> None:
+    def _consume(self, fullness: float, mood_bonus: float, name: str = "") -> None:
         self._food = None
         if self.pet.state is State.SLEEP:  # fell asleep before it landed
             return
         self.pet.needs.feed(fullness, mood_bonus)
         self.pet.gain_from_food(fullness)
         self.pet.brain.start_reaction(State.EAT, EAT_DURATION)
-        self._say(dialogue.pick(self.pet.needs, "feed", self.pet.brain.rng))
+        self._interacted(f"被餵了{name}" if name else "被餵食")
+        self._say(self._line("feed"))
 
     def _medicine(self) -> None:
         """Give medicine; refuses if the pet isn't sick."""
         if self.pet.stage is Stage.EGG:
             return
         if not self.pet.needs.sick:
-            self._say(dialogue.pick(self.pet.needs, "refuse_medicine", self.pet.brain.rng))
+            self._say(self._line("refuse_medicine"))
             return
         self.pet.needs.sick = False
         n = self.pet.needs
         n.health = min(100.0, n.health + MEDICINE_HEAL)
         self.pet.brain.start_reaction(State.EAT, EAT_DURATION)  # swallow the pill
-        self._say(dialogue.pick(self.pet.needs, "medicine", self.pet.brain.rng))
+        self._interacted("吃了藥")
+        self._say(self._line("medicine"))
 
     def _sleep(self) -> None:
         """Tell the pet to sleep; it refuses if it isn't tired enough."""
         if self.pet.stage is Stage.EGG:
             return
         if self.pet.needs.energy >= SLEEP_REFUSE:
-            self._say(dialogue.pick(self.pet.needs, "refuse_sleep", self.pet.brain.rng))
+            self._say(self._line("refuse_sleep"))
             return
         if self.pet.body.on_ground and not self.pet.body.held:
             self.pet.brain.force_sleep()
@@ -377,7 +535,8 @@ class PetWindow(QWidget):
         self.pet.needs.stroke()
         self.pet.brain.start_reaction(State.PET, PET_REACT_SECONDS)
         self._spawn_hearts()
-        self._say(dialogue.pick(self.pet.needs, "pet", self.pet.brain.rng))
+        self._interacted("被摸摸")
+        self._say(self._line("pet"))
 
     def _spawn_hearts(self) -> None:
         rng = self.pet.brain.rng
