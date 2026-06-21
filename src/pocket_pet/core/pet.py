@@ -115,28 +115,36 @@ class Pet:
     def facing(self) -> int:
         return self.brain.facing
 
-    def update(self, dt: float, platforms=()) -> StepResult:
-        """Integrate age + needs + physics, then let the brain react."""
+    def update(self, dt: float, platforms=(), sim_dt: float | None = None) -> StepResult:
+        """Advance the pet one frame.
+
+        ``dt`` drives physics + animation (real time). ``sim_dt`` drives the
+        life-sim (ageing, needs, digestion, sickness, death timers); it defaults
+        to ``dt`` but a dev time-accelerator can pass a larger value so the
+        whole life cycle runs faster WITHOUT speeding up movement.
+        """
         if self.dead:
             return StepResult()  # a grave doesn't age, decay, or move
+        if sim_dt is None:
+            sim_dt = dt
 
-        self.age += dt
+        self.age += sim_dt
         self.stage = stage_for(self.age)
         is_egg = self.stage is Stage.EGG
 
         # Eggs don't get hungry/tired; older pets decay normally.
         if not is_egg:
             sleeping = self.brain.state is State.SLEEP
-            self.needs.decay(dt, sleeping=sleeping)
+            self.needs.decay(sim_dt, sleeping=sleeping)
             # Metabolism: burn a little weight, more while actively moving.
             burn = WEIGHT_BASAL_BURN
             if self.brain.state in _MOVING:
                 burn += WEIGHT_MOVE_BURN
-            self.add_weight(-burn * dt)
+            self.add_weight(-burn * sim_dt)
 
             # Digestion: move food gut -> bowel; poop when the bowel fills.
             if self.gut > 0.0:
-                moved = min(self.gut, DIGEST_RATE * dt)
+                moved = min(self.gut, DIGEST_RATE * sim_dt)
                 self.gut -= moved
                 self.bowel += moved
                 if self.bowel >= POOP_AMOUNT:
@@ -147,13 +155,13 @@ class Pet:
             # it is). Once sick it stays sick until given medicine.
             if not self.needs.sick and self.needs.hygiene < SICK_HYGIENE:
                 severity = (SICK_HYGIENE - self.needs.hygiene) / SICK_HYGIENE
-                if self.brain.rng.random() < SICK_ONSET_CHANCE * severity * dt:
+                if self.brain.rng.random() < SICK_ONSET_CHANCE * severity * sim_dt:
                     self.needs.sick = True
 
             # Death from prolonged neglect or untreated illness.
             n = self.needs
-            self._starve_t = self._starve_t + dt if n.fullness <= 0 else 0.0
-            self._depress_t = self._depress_t + dt if n.mood <= 0 else 0.0
+            self._starve_t = self._starve_t + sim_dt if n.fullness <= 0 else 0.0
+            self._depress_t = self._depress_t + sim_dt if n.mood <= 0 else 0.0
             if n.health <= 0:
                 self._die(CAUSE_ILLNESS)
             elif self._starve_t >= STARVE_DEATH_SECONDS:

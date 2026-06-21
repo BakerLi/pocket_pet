@@ -42,7 +42,7 @@ from ..core.state_machine import State
 from ..platform import winapi
 from ..sim import dialogue
 from ..sim.growth import Stage
-from ..sim.persistence import dev_mode_enabled
+from ..sim.persistence import dev_mode_enabled, time_scale
 from .food import FoodWindow
 from .speech_bubble import SpeechBubble
 from .sprite import ProceduralProvider
@@ -70,6 +70,7 @@ class PetWindow(QWidget):
         # Use bundled art where present, else draw procedurally.
         self.sprite = AssetProvider(ProceduralProvider())
         self._anim = 0.0
+        self._time_scale = time_scale()  # dev life-sim accelerator (1.0 = normal)
 
         # Interaction effects.
         self._food: FoodWindow | None = None      # at most one food in the air
@@ -107,7 +108,8 @@ class PetWindow(QWidget):
     # --- loop ------------------------------------------------------------
     def _tick(self) -> None:
         self._anim += DT
-        self.pet.update(DT, self.world.platforms)
+        sim_dt = DT * self._time_scale
+        self.pet.update(DT, self.world.platforms, sim_dt=sim_dt)
         winapi.move_window_physical(self.hwnd, self.pet.body.x, self.pet.body.y)
 
         # Death: freeze interactions, show a grave, mourn once.
@@ -131,7 +133,7 @@ class PetWindow(QWidget):
         # Hygiene: poops dirty the place; recovers once it's all cleaned.
         n = len(self.world.poops)
         h = self.pet.needs.hygiene
-        h += (-HYGIENE_DECAY_PER_POOP * n if n else HYGIENE_RECOVER) * DT
+        h += (-HYGIENE_DECAY_PER_POOP * n if n else HYGIENE_RECOVER) * sim_dt
         self.pet.needs.hygiene = max(0.0, min(100.0, h))
 
         # Ambient chatter.

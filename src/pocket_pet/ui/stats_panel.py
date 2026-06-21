@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..config import SLEEP_WANT
+from ..sim.persistence import time_scale
 
 
 def _fmt_age(seconds: float) -> str:
@@ -121,4 +122,7 @@ class StatsPanel(QWidget):
             hints.append("🤒 生病")
         if n.energy < SLEEP_WANT:
             hints.append("💤 想睡")
+        ts = time_scale()
+        if ts > 1.0:
+            hints.append(f"⏩ {ts:g}x")
         self._status.setText("　".join(hints))

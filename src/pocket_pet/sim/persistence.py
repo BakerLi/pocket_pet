@@ -44,6 +44,30 @@ def dev_mode_enabled() -> bool:
         return False
 
 
+def time_scale() -> float:
+    """Dev time-acceleration factor for the whole life-sim (needs/digestion/
+    growth/death timers). 1.0 = normal.
+
+    Controlled by EITHER the env var ``POCKET_PET_SPEED`` or a file named
+    ``speed`` in the save dir whose contents are the factor (e.g. ``60``). An
+    empty/invalid value defaults to 60x. Clamped to [1, 100000].
+    """
+    raw = os.environ.get("POCKET_PET_SPEED")
+    if raw is None:
+        try:
+            f = save_dir() / "speed"
+            raw = f.read_text(encoding="utf-8").strip() if f.exists() else None
+        except OSError:
+            raw = None
+    if raw is None:
+        return 1.0
+    try:
+        val = float(raw)
+    except ValueError:
+        val = 60.0  # file present but empty/garbage -> a sensible default
+    return max(1.0, min(100000.0, val))
+
+
 def save_needs(
     needs: Needs,
     age: float = 0.0,
