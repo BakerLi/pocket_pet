@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from pocket_pet.config import AI_LINES_PER_BUCKET, AI_MAX_LINE_CHARS, CHATTER_RATES
+from pocket_pet.config import (
+    AI_DEFAULT_CHATTER_RATE,
+    AI_LINES_PER_BUCKET,
+    AI_MAX_LINE_CHARS,
+    CHATTER_RATES,
+)
 from pocket_pet.sim import ai
 
 
@@ -84,7 +89,7 @@ def test_chatter_interval_valid_and_falls_back(monkeypatch):
     monkeypatch.setitem(ai._config, "chatter_rate", "low")
     assert ai.chatter_interval() == CHATTER_RATES["low"]
     monkeypatch.setitem(ai._config, "chatter_rate", "bogus")
-    assert ai.chatter_rate() == "high"          # invalid -> default
+    assert ai.chatter_rate() == AI_DEFAULT_CHATTER_RATE   # invalid -> default
 
 
 @pytest.mark.parametrize("key", ["high", "medium", "low"])

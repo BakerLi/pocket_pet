@@ -29,8 +29,10 @@ from ctypes import wintypes
 
 import win32api
 import win32con
+import win32event
 import win32gui
 import win32process
+import winerror
 
 # --- DWM attribute ids -----------------------------------------------------
 DWMWA_EXTENDED_FRAME_BOUNDS = 9  # the *visual* rect, excluding Win10/11 invisible border
@@ -135,6 +137,26 @@ def enum_top_level_windows(skip_hwnds: set[int] | None = None) -> list[dict]:
 
     win32gui.EnumWindows(_cb, None)
     return out
+
+
+_singleton_handle = None  # kept alive for the process lifetime once acquired
+
+
+def acquire_single_instance(name: str = "PocketPet_SingleInstance") -> bool:
+    """True if we're the first instance; False if another is already running.
+
+    Uses a named mutex (per-session). On any failure we return True so a guard
+    glitch never stops the pet from launching.
+    """
+    global _singleton_handle
+    try:
+        handle = win32event.CreateMutex(None, False, name)
+        if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
+            return False
+        _singleton_handle = handle  # don't let it be GC'd / closed
+        return True
+    except Exception:
+        return True
 
 
 def active_window_info() -> dict | None:

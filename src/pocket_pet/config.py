@@ -150,12 +150,12 @@ SAVE_INTERVAL_MS = 30000  # autosave cadence
 # Ambient chatter cadence presets (seconds between lines, random in range).
 # "high" is the original lively pace; pick in the tray ("說話頻率").
 CHATTER_RATES = {
-    "high": (12.0, 22.0),
-    "medium": (28.0, 50.0),
-    "low": (75.0, 140.0),
+    "high": (12.0, 22.0),     # most talkative (original lively pace)
+    "medium": (150.0, 180.0),
+    "low": (480.0, 600.0),    # least talkative
 }
-AI_DEFAULT_CHATTER_RATE = "high"
-CHATTER_INTERVAL = CHATTER_RATES["high"]  # default / fallback
+AI_DEFAULT_CHATTER_RATE = "medium"
+CHATTER_INTERVAL = CHATTER_RATES[AI_DEFAULT_CHATTER_RATE]  # default / fallback
 BUBBLE_SECONDS = 3.5             # legacy fixed duration (fallback)
 # A bubble's on-screen time scales with how much there is to read, so longer
 # (AI) lines linger and short quips flash by.

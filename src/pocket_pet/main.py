@@ -31,9 +31,13 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def main() -> int:
     args = _parse_args(sys.argv[1:])
 
-    # DPI awareness MUST be set before QApplication is constructed.
     from .platform import winapi
 
+    # Only one pet at a time: if another instance holds the mutex, bow out.
+    if not winapi.acquire_single_instance():
+        return 0
+
+    # DPI awareness MUST be set before QApplication is constructed.
     winapi.set_dpi_awareness()
 
     from PySide6.QtWidgets import QApplication
