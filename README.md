@@ -6,6 +6,10 @@ Code's `/buddy` April Fools easter egg.
 
 See [`DESIGN.md`](DESIGN.md) for the full architecture and roadmap.
 
+The rabbit's sprite art is by **FluffyFoxOfFate** (Light Brown Bunny Shimeji),
+via Kilkakon's Shimeji-ee — see [`CREDITS.md`](CREDITS.md). All other species
+are drawn procedurally.
+
 ## Status
 
 - **Phase 0 — scaffolding + de-risking spikes (done).** Reading other windows'

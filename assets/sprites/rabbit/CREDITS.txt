@@ -1,0 +1,25 @@
+Rabbit sprite art — credits & licence
+======================================
+
+The rabbit's artwork in this folder (idle/walk/run/fall/drag/sleep/eat/pet/
+climb/land PNGs) is derived from the "Light Brown Bunny" Shimeji image set.
+It was resized/cropped and repacked into sprite sheets for Pocket Pet, but the
+artwork itself is NOT original to this project.
+
+Artist:      FluffyFoxOfFate
+             https://www.deviantart.com/fluffyfoxoffate
+             Support: https://ko-fi.com/fluffyfoxoffate
+
+Framework:   Shimeji-ee (Shimeji English Enhanced) by Kilkakon
+             https://kilkakon.com/shimeji
+             Original Shimeji by Yuki Yamada / Group Finity
+             http://www.group-finity.com/Shimeji/
+
+Permission (from the Shimeji-ee pack's licence.txt, by Kilkakon):
+  "You are welcome to use this work in your own projects if you credit
+   Kilkakon and the original people who worked on this. A link to
+   kilkakon.com would also be nice."
+
+Accordingly, credit goes to FluffyFoxOfFate (art) and Kilkakon / Group Finity
+(framework + original Shimeji). See CREDITS.md in the project root for the full
+notice and the Shimeji-ee BSD licence text.
