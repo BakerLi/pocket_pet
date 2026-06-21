@@ -25,6 +25,7 @@ import urllib.request
 
 from ..config import (
     AI_CONFIG_FILE,
+    AI_DEFAULT_CHATTER_RATE,
     AI_DEFAULT_ENABLED,
     AI_DEFAULT_MODEL,
     AI_DEFAULT_PERSONALITY,
@@ -41,6 +42,7 @@ from ..config import (
     AI_PERSONALITIES,
     AI_POOL_LOW_WATER,
     AI_REQUEST_TIMEOUT,
+    CHATTER_RATES,
     WEATHER_CACHE_SECONDS,
     WEATHER_TIMEOUT,
     WEATHER_URL,
@@ -156,6 +158,22 @@ def weather_enabled() -> bool:
 def set_weather(on: bool) -> None:
     _config["weather"] = bool(on)
     save_config(_config)
+
+
+def chatter_rate() -> str:
+    r = _config.get("chatter_rate", AI_DEFAULT_CHATTER_RATE)
+    return r if r in CHATTER_RATES else AI_DEFAULT_CHATTER_RATE
+
+
+def set_chatter_rate(key: str) -> None:
+    if key in CHATTER_RATES:
+        _config["chatter_rate"] = key
+        save_config(_config)
+
+
+def chatter_interval() -> tuple[float, float]:
+    """(min, max) seconds between ambient lines, per the chosen rate."""
+    return CHATTER_RATES[chatter_rate()]
 
 
 def personality() -> str:

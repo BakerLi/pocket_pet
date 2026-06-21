@@ -29,7 +29,6 @@ from ..config import (
     CAUSE_DEPRESS,
     CAUSE_ILLNESS,
     CAUSE_STARVE,
-    CHATTER_INTERVAL,
     DT,
     EAT_DURATION,
     FOODS,
@@ -90,7 +89,7 @@ class PetWindow(QWidget):
         self._was_dead = False
 
         self.bubble = SpeechBubble()
-        self._chatter_t = self.pet.brain.rng.uniform(*CHATTER_INTERVAL)
+        self._chatter_t = self.pet.brain.rng.uniform(*ai.chatter_interval())
         self._last_stage = self.pet.stage
 
         # AI snark (optional): a per-pet pool of Gemini lines, with preset
@@ -175,7 +174,7 @@ class PetWindow(QWidget):
         # Ambient chatter.
         self._chatter_t -= DT
         if self._chatter_t <= 0:
-            self._chatter_t = self.pet.brain.rng.uniform(*CHATTER_INTERVAL)
+            self._chatter_t = self.pet.brain.rng.uniform(*ai.chatter_interval())
             self._say(self._ambient_line())
 
         # Opt-in one-shots (window snark / philosophical musings): show any ready

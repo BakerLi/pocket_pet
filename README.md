@@ -56,6 +56,13 @@ are drawn procedurally.
   doesn't need. Prolonged starvation, sustained sadness, or untreated illness
   lead to **permanent death** — a 🪦 tombstone with an epitaph (click to read).
   Set `POCKET_PET_DEV=1` for a hidden tray "復活" revive backdoor.
+- **AI snark (optional, Gemini).** With an API key the pet voices AI-generated
+  lines — situational quips (time-of-day, neglect, being thrown, sickness),
+  selectable personalities (savage / tsundere / chuuni / gentle), comments on
+  your active window, occasional philosophical musings (optionally seasoned with
+  local weather), and a cause-+memory-aware epitaph when it dies. It **always
+  falls back** to the built-in preset lines when there's no key / no network /
+  quota is exhausted, so nothing ever breaks. See **AI snark setup** below.
 
 ### Run the pet
 
@@ -70,6 +77,38 @@ Interactions: right-click → **餵食** picks one of several foods, which drops
 from the top of the screen onto the pet to eat (different fullness/mood values);
 **摸摸** strokes it with a hand and floats hearts (hovering the pet shows a hand
 cursor). The pet also does the odd playful hop on its own.
+
+## AI snark setup (optional)
+
+The pet works fully without this — it's pure topping. To enable AI lines:
+
+1. Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com)
+   (sign in → *Get API key* → *Create API key*).
+2. Put it where the app looks (neither path is in the repo, so the key is never
+   committed):
+   - environment variable `GEMINI_API_KEY`, **or**
+   - a file `%APPDATA%\pocket_pet\gemini_key.txt` containing just the key.
+3. Restart the pet. A **🤖 AI 嘴砲** submenu appears in the tray.
+
+Tray controls:
+
+- **🤖 AI 嘴砲** → enable, pick a **personality**, and toggle **👀 偷看視窗吐槽**
+  (window snark), **🌌 哲學murmur** (philosophical musings), **🌦️ 天氣素材**
+  (weather flavour).
+- **🗣️ 說話頻率** → ambient chatter cadence (高 / 中 / 低), works with or
+  without a key.
+
+Preferences live in `%APPDATA%\pocket_pet\ai_config.json` (`personality`,
+`model`, the toggles, `chatter_rate`).
+
+**Privacy.** Window snark sends the *foreground window's title* to Gemini;
+weather sends your *approximate location (IP)* to wttr.in. Both are toggleable
+in the tray. (In the current build they default on — flip them off if you don't
+want that.) The pet only ever sends its own state and these opted-in extras.
+
+**Quota.** Lines are batch-generated into a local pool, so the network is hit
+rarely; on the free tier this is plenty. If the quota runs out it silently
+reverts to preset lines.
 
 ## Setup (developers)
 

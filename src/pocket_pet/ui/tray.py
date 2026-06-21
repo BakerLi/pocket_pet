@@ -22,6 +22,22 @@ def _set_personality(world, key: str) -> None:
         win._ai.reset()
 
 
+def _build_rate_menu(menu: QMenu) -> None:
+    """Add the '🗣️ 說話頻率' submenu (ambient chatter cadence; works w/o a key)."""
+    rate_menu = menu.addMenu("🗣️  說話頻率")
+    group = QActionGroup(rate_menu)
+    group.setExclusive(True)
+    current = ai.chatter_rate()
+    for key, label in (("high", "高"), ("medium", "中"), ("low", "低")):
+        act = rate_menu.addAction(label)
+        act.setCheckable(True)
+        act.setChecked(key == current)
+        group.addAction(act)
+        act.triggered.connect(lambda _checked=False, k=key: ai.set_chatter_rate(k))
+    rate_menu._group = group
+    menu._rate_menu = rate_menu
+
+
 def _build_ai_menu(menu: QMenu, world) -> None:
     """Add the '🤖 AI 嘴砲' submenu (enable toggle + personality picker)."""
     ai_menu = menu.addMenu("🤖  AI 嘴砲")
@@ -88,6 +104,7 @@ def build_tray(world) -> QSystemTrayIcon:
 
     menu = QMenu()
     menu.addAction("🏠  把寵物找回來", lambda: world.recall_pet())  # 🏠 找回跑掉的寵物
+    _build_rate_menu(menu)            # speech cadence (works with or without AI)
     if ai.has_key():  # Gemini-powered snark controls (only if a key is present)
         _build_ai_menu(menu, world)
     if dev_mode_enabled():  # developer backdoor to revive a dead pet

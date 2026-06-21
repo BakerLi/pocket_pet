@@ -147,7 +147,15 @@ HEART_RISE = 70.0         # px/s the hearts drift upward
 SAVE_INTERVAL_MS = 30000  # autosave cadence
 
 # --- Speech bubbles --------------------------------------------------------
-CHATTER_INTERVAL = (12.0, 22.0)  # seconds between ambient lines (random in range)
+# Ambient chatter cadence presets (seconds between lines, random in range).
+# "high" is the original lively pace; pick in the tray ("說話頻率").
+CHATTER_RATES = {
+    "high": (12.0, 22.0),
+    "medium": (28.0, 50.0),
+    "low": (75.0, 140.0),
+}
+AI_DEFAULT_CHATTER_RATE = "high"
+CHATTER_INTERVAL = CHATTER_RATES["high"]  # default / fallback
 BUBBLE_SECONDS = 3.5             # legacy fixed duration (fallback)
 # A bubble's on-screen time scales with how much there is to read, so longer
 # (AI) lines linger and short quips flash by.
