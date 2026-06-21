@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pocket-pet"
-version = "0.0.1"
+version = "0.1.0"
 description = "Desktop pet that walks the desktop, perches on windows, falls with gravity, and grows."
 requires-python = ">=3.11"
 dependencies = [
