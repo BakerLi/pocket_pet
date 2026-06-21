@@ -89,16 +89,11 @@ class AssetProvider(SpriteProvider):
         if stage is Stage.EGG:
             return self._load_file(folder, f"{state_name}_egg.png")
 
-        # A baby uses its own art if provided, else the default art shrunk to
-        # the baby size (so the stage is still visible for arted species).
+        # A baby always uses the self-drawn ball creature (a distinct, cuter
+        # life stage) — fall through so AssetProvider defers to the procedural
+        # sprite, which draws the species' ball form at baby size.
         if stage is Stage.BABY:
-            baby = self._load_file(folder, f"{state_name}_baby.png")
-            if baby is not None:
-                return baby
-            default = self._load_file(folder, f"{state_name}.png")
-            if default is None:
-                return None
-            return _Anim(default.pixmap, default.frames, default.fps, Stage.BABY.scale)
+            return None
 
         # Adult: the default sheet.
         return self._load_file(folder, f"{state_name}.png")
