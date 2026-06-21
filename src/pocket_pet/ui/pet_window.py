@@ -324,6 +324,9 @@ class PetWindow(QWidget):
         if self.pet.stage is Stage.EGG:
             self._say("還是顆蛋呢…")  # eggs don't eat
             return
+        if self.pet.state is State.SLEEP:  # don't eat while asleep
+            self._say("Zzz…")
+            return
         if self.pet.needs.fullness >= FULL_REFUSE:  # too full -> refuse
             self._say(dialogue.pick(self.pet.needs, "refuse_full", self.pet.brain.rng))
             return
@@ -337,6 +340,8 @@ class PetWindow(QWidget):
 
     def _consume(self, fullness: float, mood_bonus: float) -> None:
         self._food = None
+        if self.pet.state is State.SLEEP:  # fell asleep before it landed
+            return
         self.pet.needs.feed(fullness, mood_bonus)
         self.pet.gain_from_food(fullness)
         self.pet.brain.start_reaction(State.EAT, EAT_DURATION)

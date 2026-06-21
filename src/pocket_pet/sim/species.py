@@ -109,3 +109,31 @@ def random_identity(rng: random.Random) -> Identity:
         rarity=_weighted_rarity(rng),
         shiny=rng.random() < SHINY_CHANCE,
     )
+
+
+_BY_KEY = {s.key: s for s in SPECIES}
+_RARITY_BY_KEY = {r.name.lower(): r for r in Rarity}  # "common".."legendary"
+
+
+def species_keys() -> list[str]:
+    return [s.key for s in SPECIES]
+
+
+def by_key(key: str) -> Species | None:
+    return _BY_KEY.get(key.lower())
+
+
+def make_identity(
+    base: Identity,
+    species_key: str | None = None,
+    rarity_key: str | None = None,
+    shiny: bool | None = None,
+) -> Identity:
+    """Return ``base`` with any provided fields overridden (for dev/testing)."""
+    sp = by_key(species_key) if species_key else None
+    ra = _RARITY_BY_KEY.get(rarity_key.lower()) if rarity_key else None
+    return Identity(
+        species=sp or base.species,
+        rarity=ra or base.rarity,
+        shiny=base.shiny if shiny is None else shiny,
+    )

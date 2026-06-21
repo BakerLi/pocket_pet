@@ -50,6 +50,7 @@ class _Anim:
     pixmap: QPixmap
     frames: int
     fps: float
+    scale: float = 1.0   # extra size factor (e.g. shrink adult art for a baby)
 
 
 class AssetProvider(SpriteProvider):
@@ -82,30 +83,43 @@ class AssetProvider(SpriteProvider):
         if not species_key:
             return None
         folder = self._root / species_key
-        names = []
-        suffix = _STAGE_SUFFIX[stage]
-        if suffix:  # try a stage-specific file first, then the default
-            names.append(f"{state_name}_{suffix}.png")
-        names.append(f"{state_name}.png")
 
-        for name in names:
-            png = folder / name
-            if not png.exists():
-                continue
-            pm = QPixmap(str(png))
-            if pm.isNull():
-                continue
-            frames, fps = 1, 8.0
-            meta = png.with_suffix(".json")
-            if meta.exists():
-                try:
-                    m = json.loads(meta.read_text(encoding="utf-8"))
-                    frames = max(1, int(m.get("frames", 1)))
-                    fps = float(m.get("fps", 8.0))
-                except (ValueError, OSError):
-                    pass
-            return _Anim(pm, frames, fps)
-        return None
+        # An egg always looks like an egg: only use art if it's egg-specific,
+        # else fall through to the procedural egg drawing.
+        if stage is Stage.EGG:
+            return self._load_file(folder, f"{state_name}_egg.png")
+
+        # A baby uses its own art if provided, else the default art shrunk to
+        # the baby size (so the stage is still visible for arted species).
+        if stage is Stage.BABY:
+            baby = self._load_file(folder, f"{state_name}_baby.png")
+            if baby is not None:
+                return baby
+            default = self._load_file(folder, f"{state_name}.png")
+            if default is None:
+                return None
+            return _Anim(default.pixmap, default.frames, default.fps, Stage.BABY.scale)
+
+        # Adult: the default sheet.
+        return self._load_file(folder, f"{state_name}.png")
+
+    def _load_file(self, folder: Path, name: str) -> _Anim | None:
+        png = folder / name
+        if not png.exists():
+            return None
+        pm = QPixmap(str(png))
+        if pm.isNull():
+            return None
+        frames, fps = 1, 8.0
+        meta = png.with_suffix(".json")
+        if meta.exists():
+            try:
+                m = json.loads(meta.read_text(encoding="utf-8"))
+                frames = max(1, int(m.get("frames", 1)))
+                fps = float(m.get("fps", 8.0))
+            except (ValueError, OSError):
+                pass
+        return _Anim(pm, frames, fps)
 
     # --- drawing ---------------------------------------------------------
     def _blit(self, p: QPainter, ctx: SpriteContext, anim: _Anim) -> None:
@@ -120,7 +134,7 @@ class AssetProvider(SpriteProvider):
         # the wall side so the pet sits flush against the window edge. (The
         # mirror transform below flips dx to the correct side for facing<0, so
         # ctx.w - dw lands flush against whichever wall it's climbing.)
-        scale = min(ctx.w / fw, ctx.h / fh)
+        scale = min(ctx.w / fw, ctx.h / fh) * anim.scale
         dw, dh = fw * scale, fh * scale
         dx = (ctx.w - dw) if ctx.state is State.CLIMB else (ctx.w - dw) / 2.0
         dy = ctx.h - dh
